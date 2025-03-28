@@ -1,150 +1,251 @@
-# YashaoXen - Multi-Proxy EarnApp Management System
+# YashaoXen (夜殇玄) - The Dark Mystic Optimizer 🌌
 
-YashaoXen is a robust and user-friendly system for managing multiple EarnApp instances with proxy support. It provides automated setup, monitoring, and management capabilities with built-in safeguards.
+<div align="center">
 
-## Features
+![YashaoXen Logo](docs/assets/logo.png)
 
-- 🚀 Easy setup and management of multiple EarnApp instances
-- 🔄 Automatic proxy rotation and health monitoring
-- 🛡️ Built-in safeguards and anti-detection measures
-- 📊 Real-time monitoring and status reporting
-- 🔒 Secure container isolation for each instance
-- ⚡ Resource management and optimization
+*Where Eastern Mysticism Meets Modern Technology*
 
-## Prerequisites
+[![GitHub license](https://img.shields.io/github/license/oyash01/YashaoXen)](https://github.com/oyash01/YashaoXen/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/oyash01/YashaoXen)](https://github.com/oyash01/YashaoXen/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/oyash01/YashaoXen)](https://github.com/oyash01/YashaoXen/issues)
+[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/downloads/)
+[![Docker](https://img.shields.io/badge/docker-required-blue)](https://www.docker.com/)
 
-- Linux/Unix system
-- Python 3.8 or higher
-- Docker installed and running
-- Root/sudo access
-- Minimum 2GB RAM per instance
-- Stable internet connection
+</div>
 
-## Installation
+## 🌟 Mystical Features
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/oyash01/YashaoXen.git
-   cd YashaoXen
-   ```
+### 🌒 YashCore™ Technology
+- **Dragon's Breath Engine**: Advanced optimization system
+- **Shadow Walker**: Dynamic resource allocation
+- **Thunder Strike**: Intelligent traffic shaping
+- **Oracle Eye**: Real-time performance monitoring
 
-2. Install the package:
-   ```bash
-   pip install -e .
-   ```
+### 🐉 Dragon's Breath System
+- **Phoenix Rise**: Ultra-fast traffic acceleration
+- **Dragon Scale**: TCP/IP stack optimization
+- **Storm Lord**: Advanced congestion control
+- **Thunder Gate**: Multi-threaded processing
 
-3. Create a proxy file (e.g., `proxies.txt`) with one proxy per line:
-   ```
-   socks5://user:pass@host:port
-   http://user:pass@host:port
-   ```
+### 🌌 Void Walker Security
+- **Dark Seal**: Military-grade encryption
+- **Shadow Path**: Advanced proxy tunneling
+- **Night's Watch**: Pattern-based threat detection
+- **Mystic Shield**: Real-time security monitoring
 
-## Usage
+## 📦 Platform-Specific Installation
 
-### Creating Instances
-
-Create EarnApp instances using your proxy list:
+### 🐧 Linux Installation
 
 ```bash
-yashaoxen create-instances --proxy-file proxies.txt --memory 1G
+# 1. System Requirements Check
+sudo apt update && sudo apt install -y \
+    python3.8 \
+    python3-pip \
+    docker.io \
+    docker-compose
+
+# 2. Add User to Docker Group
+sudo usermod -aG docker $USER
+newgrp docker
+
+# 3. Clone the Repository
+git clone https://github.com/oyash01/YashaoXen.git
+cd YashaoXen
+
+# 4. Install Dependencies
+python3 -m pip install -e .
+
+# 5. Create Configuration Directory
+sudo mkdir -p /etc/yashaoxen
+sudo chown $USER:$USER /etc/yashaoxen
+
+# 6. Initialize System
+yashaoxen init
 ```
 
-Options:
-- `--proxy-file, -p`: Path to your proxy list file
-- `--memory, -m`: Memory limit per instance (1G or 2G)
-- `--yes, -y`: Skip confirmation prompts
+### 🪟 Windows Installation
 
-The system will:
-1. Validate your proxies
-2. Check system resources
-3. Create isolated containers
-4. Configure proxy settings
-5. Start EarnApp instances
-6. Monitor health
+```powershell
+# 1. Install Chocolatey (Run as Administrator)
+Set-ExecutionPolicy Bypass -Scope Process -Force
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
 
-### Monitoring Instances
+# 2. Install Requirements
+choco install -y python docker-desktop git
 
-View real-time status of your instances:
+# 3. Clone Repository
+git clone https://github.com/oyash01/YashaoXen.git
+cd YashaoXen
+
+# 4. Install Package
+pip install -e .
+
+# 5. Initialize System
+yashaoxen init
+```
+
+### 🍎 macOS Installation
 
 ```bash
-yashaoxen monitor
+# 1. Install Homebrew
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# 2. Install Requirements
+brew install python@3.8 docker docker-compose git
+
+# 3. Clone Repository
+git clone https://github.com/oyash01/YashaoXen.git
+cd YashaoXen
+
+# 4. Install Package
+python3 -m pip install -e .
+
+# 5. Initialize System
+yashaoxen init
 ```
 
-This will show:
-- Instance status
-- Memory usage
-- CPU usage
-- Network statistics
-- Proxy status
+## 🚀 Quick Start Guide
 
-### Checking Status
-
-Get a quick overview of all instances:
-
+### 1. 📝 Create Proxy Configuration
 ```bash
-yashaoxen status
+# Create proxy file
+cat > proxies.txt << EOL
+socks5://user1:pass1@host1:1080
+socks5://user2:pass2@host2:1080
+EOL
 ```
 
-## Safety Features
+### 2. 🌟 Initialize Instances
+```bash
+# Create optimized instances
+yashaoxen create-instances \
+    --proxy-file proxies.txt \
+    --memory 1G \
+    --optimize
+```
 
-YashaoXen includes several safety measures:
+### 3. 🔍 Monitor Performance
+```bash
+# Start monitoring dashboard
+yashaoxen monitor --dashboard
+```
 
-1. **Proxy Validation**: Each proxy is tested before use
-2. **Rate Limiting**: Prevents too rapid operations
-3. **Resource Monitoring**: Ensures system stability
-4. **Error Handling**: Graceful failure recovery
-5. **Container Isolation**: Secure instance separation
+## 🛡️ Security Features
 
-## Troubleshooting
+### 🌙 Night's Watch Protection
+```bash
+# Enable advanced security
+yashaoxen security enable-advanced
 
-### Common Issues
+# Configure security options
+yashaoxen config set security.isolation true
+yashaoxen config set security.network_monitoring true
+```
 
-1. **Docker Permission Error**
-   ```bash
-   sudo usermod -aG docker $USER
-   newgrp docker
-   ```
+### 🔮 Oracle Eye Analytics
+```bash
+# Enable monitoring
+yashaoxen monitor --alerts \
+    --dashboard \
+    --log-level info
+```
 
-2. **Proxy Connection Failed**
-   - Check proxy format
-   - Verify proxy credentials
-   - Ensure proxy is online
+## 🎯 Advanced Usage
 
-3. **Resource Limits**
-   - Ensure enough RAM available
-   - Check system CPU usage
-   - Verify disk space
+### 🐲 Dragon's Breath Optimization
+```bash
+# Optimize system performance
+yashaoxen optimize system \
+    --cpu-tweaks \
+    --memory-optimization \
+    --network-tuning
+```
 
-### Logs
+### 🌊 Storm Lord Load Balancing
+```bash
+# Configure load balancing
+yashaoxen config set load_balancing.mode adaptive
+yashaoxen config set load_balancing.threshold 80
+```
 
-- Application logs: `/var/log/yashaoxen/app.log`
-- EarnApp logs: `/var/log/earnapp/`
-- Container logs: Available via `docker logs`
+## 📊 Performance Monitoring
 
-## Best Practices
+### 🎭 Shadow Walker Stats
+```bash
+# View detailed statistics
+yashaoxen stats show \
+    --cpu \
+    --memory \
+    --network \
+    --proxies
+```
 
-1. **Proxy Management**
-   - Use high-quality proxies
-   - Regularly update proxy list
-   - Monitor proxy health
+### 🌪️ Thunder Strike Analysis
+```bash
+# Analyze performance patterns
+yashaoxen analyze performance \
+    --detailed \
+    --export report.pdf
+```
 
-2. **Resource Planning**
-   - Plan memory allocation
-   - Monitor system resources
-   - Scale gradually
+## 🔧 Troubleshooting
 
-3. **Maintenance**
-   - Regular health checks
-   - Update proxies as needed
-   - Monitor earnings
+### 🔥 Common Issues
 
-## Support
+#### Docker Permission Issues
+```bash
+# Linux
+sudo chmod 666 /var/run/docker.sock
 
-For issues and support:
-- Create an issue on GitHub
-- Join our community discussions
-- Check the documentation
+# Windows (Run PowerShell as Administrator)
+Restart-Service docker
+```
 
-## License
+#### Proxy Connection Issues
+```bash
+# Test proxy connections
+yashaoxen proxy test-all
 
-MIT License - see LICENSE file for details
+# View proxy health
+yashaoxen proxy health-check
+```
+
+## 🌟 Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=oyash01/YashaoXen&type=Date)](https://star-history.com/#oyash01/YashaoXen&Date)
+
+## 🤝 Contributing
+
+1. 🍴 Fork the repository
+2. 🌿 Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. 💫 Commit your changes (`git commit -m 'Add amazing feature'`)
+4. 🚀 Push to the branch (`git push origin feature/amazing-feature`)
+5. 🎉 Open a Pull Request
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+Need help? We've got you covered:
+1. 📚 Check the [documentation](docs/README.md)
+2. 🔍 Search [existing issues](https://github.com/oyash01/YashaoXen/issues)
+3. 💫 Create a [new issue](https://github.com/oyash01/YashaoXen/issues/new)
+
+## 🌟 Special Thanks
+
+Special thanks to all contributors and the open-source community for making this project possible.
+
+---
+
+<div align="center">
+
+**YashaoXen** - *Unleash the Power of the Night* 🌌
+
+[Documentation](docs/README.md) • [Issues](https://github.com/oyash01/YashaoXen/issues) • [Discussions](https://github.com/oyash01/YashaoXen/discussions)
+
+</div>
