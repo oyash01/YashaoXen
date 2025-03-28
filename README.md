@@ -1,24 +1,26 @@
-# AetherNode
+# YashaoXen (夜殇玄)
 
-AetherNode is a powerful and user-friendly tool for managing EarnApp instances with advanced features for proxy management, security, and performance optimization.
+YashaoXen is a legendary optimization framework forged from the fusion of Eastern mysticism and modern technology. Named after the ancient Chinese concept of "Night's Dark Mystery" (夜殇玄), it embodies the perfect balance of power and stealth.
 
 ## Features
 
-- 🚀 Easy setup and configuration
-- 🔒 Advanced security features
-- 🔄 Proxy support with automatic rotation
-- 📊 Performance optimization
-- 🛡️ Safeguard detection and blocking
-- 🔄 Auto-update system
-- 💾 Configuration backup and restore
-- 📝 Detailed logging
+- 🌒 YashCore™ optimization engine
+- 🐉 Dragon's Breath traffic acceleration
+- 🌌 Void Walker proxy system
+- ⚡ Thunder Strike pattern matching
+- 🏮 Red Lantern stealth protocols
+- 🗝️ Jade Key encryption suite
+- 🌪️ Storm Lord load balancing
+- 🎭 Shadow Master identity rotation
+- ⚔️ Samurai Shield protection
+- 🔮 Oracle Eye pattern analysis
 
 ## Installation
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/jonfedric/AetherNode.git
-cd AetherNode
+git clone https://github.com/jonfedric/YashaoXen.git
+cd YashaoXen
 ```
 
 2. Install dependencies:

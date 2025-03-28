@@ -13,11 +13,11 @@ from typing import Dict, Any, Optional
 logger = logging.getLogger(__name__)
 
 class Updater:
-    def __init__(self, config_dir: Path = Path("/etc/aethernode")):
+    def __init__(self, config_dir: Path = Path("/etc/yashaoxen")):
         self.config_dir = config_dir
         self.version_file = self.config_dir / "version.json"
         self.backup_dir = self.config_dir / "backups"
-        self.repo_url = "https://api.github.com/repos/jonfedric/AetherNode"  # Updated repository URL
+        self.repo_url = "https://api.github.com/repos/jonfedric/YashaoXen"  # Updated repository URL
         self.current_version = self._get_current_version()
 
     def _get_current_version(self) -> str:
