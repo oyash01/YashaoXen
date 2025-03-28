@@ -1,217 +1,150 @@
-# YashaoXen (夜殇玄)
+# YashaoXen - Multi-Proxy EarnApp Management System
 
-<p align="center">
-  <img src="docs/assets/logo.png" alt="YashaoXen Logo" width="200"/>
-  <br>
-  <em>Night's Dark Mystery - The Ultimate Optimization Framework</em>
-</p>
+YashaoXen is a robust and user-friendly system for managing multiple EarnApp instances with proxy support. It provides automated setup, monitoring, and management capabilities with built-in safeguards.
 
-YashaoXen is a legendary optimization framework forged from the fusion of Eastern mysticism and modern technology. Named after the ancient Chinese concept of "Night's Dark Mystery" (夜殇玄), it embodies the perfect balance of power and stealth.
+## Features
 
-[![GitHub license](https://img.shields.io/github/license/oyash01/YashaoXen)](https://github.com/oyash01/YashaoXen/blob/main/LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/oyash01/YashaoXen)](https://github.com/oyash01/YashaoXen/stargazers)
-[![GitHub issues](https://img.shields.io/github/issues/oyash01/YashaoXen)](https://github.com/oyash01/YashaoXen/issues)
+- 🚀 Easy setup and management of multiple EarnApp instances
+- 🔄 Automatic proxy rotation and health monitoring
+- 🛡️ Built-in safeguards and anti-detection measures
+- 📊 Real-time monitoring and status reporting
+- 🔒 Secure container isolation for each instance
+- ⚡ Resource management and optimization
 
-## 🌟 Core Features
+## Prerequisites
 
-### 🌒 YashCore™ Technology
-- Advanced optimization engine
-- Dynamic resource allocation
-- Intelligent traffic shaping
-- Real-time performance monitoring
+- Linux/Unix system
+- Python 3.8 or higher
+- Docker installed and running
+- Root/sudo access
+- Minimum 2GB RAM per instance
+- Stable internet connection
 
-### 🐉 Dragon's Breath System
-- Ultra-fast traffic acceleration
-- Custom TCP/IP stack optimization
-- Advanced congestion control
-- Multi-threaded processing
+## Installation
 
-### 🌌 Void Walker Security
-- Military-grade encryption
-- Advanced proxy tunneling
-- Pattern-based threat detection
-- Real-time security monitoring
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/oyash01/YashaoXen.git
+   cd YashaoXen
+   ```
 
-### ⚡ Performance Features
-- Thunder Strike pattern matching
-- Storm Lord load balancing
-- Oracle Eye analytics
-- Quantum pattern analysis
+2. Install the package:
+   ```bash
+   pip install -e .
+   ```
 
-## 🚀 Quick Start
+3. Create a proxy file (e.g., `proxies.txt`) with one proxy per line:
+   ```
+   socks5://user:pass@host:port
+   http://user:pass@host:port
+   ```
 
-### Prerequisites
-- Python 3.8+
-- Docker & Docker Compose
-- Linux/Unix environment
-- Root privileges
+## Usage
 
-### Installation
+### Creating Instances
+
+Create EarnApp instances using your proxy list:
+
 ```bash
-# Clone the repository
-git clone https://github.com/oyash01/YashaoXen.git
-cd YashaoXen
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run setup wizard
-python -m yashaoxen setup
+yashaoxen create-instances --proxy-file proxies.txt --memory 1G
 ```
 
-### Basic Usage
+Options:
+- `--proxy-file, -p`: Path to your proxy list file
+- `--memory, -m`: Memory limit per instance (1G or 2G)
+- `--yes, -y`: Skip confirmation prompts
+
+The system will:
+1. Validate your proxies
+2. Check system resources
+3. Create isolated containers
+4. Configure proxy settings
+5. Start EarnApp instances
+6. Monitor health
+
+### Monitoring Instances
+
+View real-time status of your instances:
+
 ```bash
-# Configure settings
-python -m yashaoxen config wizard
-
-# Create instances
-python -m yashaoxen create-instances --memory 1G --proxy-file proxies.txt
-
-# Monitor instances
-python -m yashaoxen list-instances
+yashaoxen monitor
 ```
 
-## 📚 Documentation
+This will show:
+- Instance status
+- Memory usage
+- CPU usage
+- Network statistics
+- Proxy status
 
-### Configuration Management
+### Checking Status
+
+Get a quick overview of all instances:
+
 ```bash
-# Show current config
-python -m yashaoxen config show
-
-# Edit configuration
-python -m yashaoxen config edit
-
-# Backup configuration
-python -m yashaoxen config backup
+yashaoxen status
 ```
 
-### Security Features
-```bash
-# Enable Void Walker security
-python -m yashaoxen security enable-void-walker
+## Safety Features
 
-# Configure Dragon's Breath
-python -m yashaoxen performance configure-dragon-breath
+YashaoXen includes several safety measures:
 
-# Enable Thunder Strike
-python -m yashaoxen security enable-thunder-strike
-```
+1. **Proxy Validation**: Each proxy is tested before use
+2. **Rate Limiting**: Prevents too rapid operations
+3. **Resource Monitoring**: Ensures system stability
+4. **Error Handling**: Graceful failure recovery
+5. **Container Isolation**: Secure instance separation
 
-### Performance Optimization
-```bash
-# Enable aggressive mode
-python -m yashaoxen performance set-aggressive
+## Troubleshooting
 
-# Configure Storm Lord
-python -m yashaoxen performance configure-storm-lord
+### Common Issues
 
-# Enable Oracle Eye
-python -m yashaoxen analytics enable-oracle-eye
-```
+1. **Docker Permission Error**
+   ```bash
+   sudo usermod -aG docker $USER
+   newgrp docker
+   ```
 
-## 🛡️ Security Features
+2. **Proxy Connection Failed**
+   - Check proxy format
+   - Verify proxy credentials
+   - Ensure proxy is online
 
-### Void Walker System
-- Advanced proxy tunneling
-- Pattern-based detection
-- Real-time monitoring
-- Threat prevention
+3. **Resource Limits**
+   - Ensure enough RAM available
+   - Check system CPU usage
+   - Verify disk space
 
-### Red Lantern Protocol
-- Traffic obfuscation
-- Deep packet inspection
-- Protocol manipulation
-- Signature masking
+### Logs
 
-### Jade Key Suite
-- Military-grade encryption
-- Secure key exchange
-- Certificate management
-- Identity verification
+- Application logs: `/var/log/yashaoxen/app.log`
+- EarnApp logs: `/var/log/earnapp/`
+- Container logs: Available via `docker logs`
 
-## 🔧 Advanced Configuration
+## Best Practices
 
-### Performance Tuning
-```json
-{
-  "performance": {
-    "dragon_breath": {
-      "aggressive_mode": true,
-      "tcp_optimization": true,
-      "congestion_control": "bbr"
-    },
-    "storm_lord": {
-      "load_balancing": "adaptive",
-      "thread_count": "auto"
-    }
-  }
-}
-```
+1. **Proxy Management**
+   - Use high-quality proxies
+   - Regularly update proxy list
+   - Monitor proxy health
 
-### Security Configuration
-```json
-{
-  "security": {
-    "void_walker": {
-      "encryption_level": "military",
-      "pattern_detection": true
-    },
-    "red_lantern": {
-      "obfuscation": true,
-      "deep_inspection": true
-    }
-  }
-}
-```
+2. **Resource Planning**
+   - Plan memory allocation
+   - Monitor system resources
+   - Scale gradually
 
-## 📊 Monitoring & Analytics
+3. **Maintenance**
+   - Regular health checks
+   - Update proxies as needed
+   - Monitor earnings
 
-### Oracle Eye Dashboard
-- Real-time performance metrics
-- Security event monitoring
-- Resource utilization
-- Traffic analysis
+## Support
 
-### Thunder Strike Analytics
-- Pattern detection
-- Anomaly identification
-- Performance tracking
-- Security alerts
+For issues and support:
+- Create an issue on GitHub
+- Join our community discussions
+- Check the documentation
 
-## 🤝 Contributing
+## License
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-If you encounter any issues:
-1. Check the [documentation](docs/README.md)
-2. Look through [existing issues](https://github.com/oyash01/YashaoXen/issues)
-3. Create a [new issue](https://github.com/oyash01/YashaoXen/issues/new)
-
-## 🔄 Updates
-
-Stay updated with the latest features:
-```bash
-# Check for updates
-python -m yashaoxen update check
-
-# Install updates
-python -m yashaoxen update install
-```
-
-## 🌟 Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=oyash01/YashaoXen&type=Date)](https://star-history.com/#oyash01/YashaoXen&Date)
-
-## 🙏 Acknowledgments
-
-Special thanks to all contributors and the open-source community.
+MIT License - see LICENSE file for details
