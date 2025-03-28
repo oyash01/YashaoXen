@@ -4,9 +4,10 @@ import time
 import click
 import logging
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from .core import YashCore
 from .proxy import ProxyManager
+from .install import Installer
 
 # Configure logging
 logging.basicConfig(
@@ -65,8 +66,42 @@ def confirm_action(message: str) -> bool:
 
 @click.group()
 def cli():
-    """YashaoXen - Multi-Proxy EarnApp Management System"""
+    """YashaoXen CLI - Advanced EarnApp Management Tool"""
     print_banner()
+
+@cli.command()
+def install():
+    """Install YashaoXen and its dependencies"""
+    if os.geteuid() != 0:
+        logger.error("Installation requires root privileges. Please run with sudo.")
+        sys.exit(1)
+    
+    installer = Installer()
+    if installer.run_installation():
+        logger.info("Installation completed successfully!")
+    else:
+        logger.error("Installation failed!")
+        sys.exit(1)
+
+@cli.command()
+def init():
+    """Initialize YashaoXen configuration"""
+    try:
+        core = YashCore()
+        status = core.check_installation()
+        
+        if not all(status.values()):
+            logger.error("System not properly configured. Please run: sudo yashaoxen install")
+            for component, configured in status.items():
+                if not configured:
+                    logger.error(f"{component} not properly configured")
+            sys.exit(1)
+        
+        logger.info("YashaoXen initialized successfully!")
+        
+    except Exception as e:
+        logger.error(f"Initialization failed: {str(e)}")
+        sys.exit(1)
 
 @cli.command()
 @click.option('--proxy-file', '-p', 
@@ -77,11 +112,9 @@ def cli():
               type=click.Choice(['1G', '2G']),
               default='1G',
               help='Memory limit per instance')
-@click.option('--yes', '-y',
-              is_flag=True,
-              help='Skip confirmation prompts')
-def create_instances(proxy_file: str, memory: str, yes: bool):
-    """Create EarnApp instances from proxy list"""
+@click.option('--optimize', is_flag=True, help='Enable performance optimization')
+def create_instances(proxy_file: str, memory: str, optimize: bool):
+    """Create EarnApp instances from a proxy list"""
     try:
         # Load proxies
         print_step("Loading proxies", 5, 1)
@@ -91,7 +124,7 @@ def create_instances(proxy_file: str, memory: str, yes: bool):
             return
 
         # Confirm action
-        if not yes:
+        if not optimize:
             total_proxies = len(proxy_manager.proxies)
             message = f"This will create {total_proxies} EarnApp instances using {memory} memory each.\nTotal memory required: {total_proxies * int(memory[0])}G\nDo you want to continue?"
             if not confirm_action(message):
@@ -126,7 +159,11 @@ def create_instances(proxy_file: str, memory: str, yes: bool):
                              item_show_func=lambda p: p if p else '') as proxies:
             for proxy in proxies:
                 try:
-                    core.create_instance(proxy, memory)
+                    instance_id = core.create_instance(
+                        proxy_url=proxy,
+                        memory=memory
+                    )
+                    valid_proxies.append(proxy)
                     created += 1
                     time.sleep(2)  # Prevent too fast container creation
                 except Exception as e:
@@ -151,70 +188,103 @@ def create_instances(proxy_file: str, memory: str, yes: bool):
         sys.exit(1)
 
 @cli.command()
-def status():
-    """Show status of all instances"""
+@click.argument('instance_id', required=False)
+def list_instances(instance_id: Optional[str]):
+    """List running instances and their status"""
     try:
         core = YashCore()
         instances = core.list_instances()
         
         if not instances:
-            click.echo("No instances found")
+            logger.info("No instances found")
             return
         
-        click.echo("\nInstance Status:")
+        if instance_id:
+            instances = [i for i in instances if i['id'] == instance_id]
+            if not instances:
+                logger.error(f"Instance {instance_id} not found")
+                sys.exit(1)
+        
         for instance in instances:
-            status_color = 'green' if instance['status'] == 'running' else 'red'
-            click.echo(
-                f"ID: {instance['id'][:12]} | "
-                f"Status: {click.style(instance['status'], fg=status_color)} | "
-                f"Memory: {instance['memory']} | "
-                f"Proxy: {instance['proxy']}"
-            )
-            
+            logger.info(f"Instance {instance['id']}:")
+            logger.info(f"  Status: {instance['status']}")
+            logger.info(f"  Proxy: {instance['proxy']}")
+            logger.info(f"  Memory: {instance['memory']}")
+            if 'stats' in instance:
+                logger.info(f"  CPU Usage: {instance['stats']['cpu_percent']}%")
+                logger.info(f"  Memory Usage: {instance['stats']['memory_usage']}")
+                logger.info(f"  Network RX: {instance['stats']['network_rx']}")
+                logger.info(f"  Network TX: {instance['stats']['network_tx']}")
+            logger.info("---")
+        
     except Exception as e:
-        logger.error(f"Failed to get status: {e}")
-        click.echo(click.style(f"\nError: {str(e)}", fg='red'))
+        logger.error(f"Failed to list instances: {str(e)}")
         sys.exit(1)
 
 @cli.command()
-def monitor():
-    """Monitor instances in real-time"""
+@click.argument('instance_id')
+def start(instance_id: str):
+    """Start a stopped instance"""
     try:
         core = YashCore()
-        click.echo("Monitoring instances (Press Ctrl+C to stop)")
-        
-        while True:
-            click.clear()
-            print_banner()
-            core.monitor_instances()
-            instances = core.list_instances()
-            
-            if not instances:
-                click.echo("No instances found")
-                time.sleep(5)
-                continue
-            
-            click.echo("\nInstance Monitoring:")
-            for instance in instances:
-                status_color = 'green' if instance['status'] == 'running' else 'red'
-                click.echo(
-                    f"\nID: {instance['id'][:12]}"
-                    f"\nStatus: {click.style(instance['status'], fg=status_color)}"
-                    f"\nMemory Usage: {instance.get('memory_usage', 'N/A')}"
-                    f"\nCPU Usage: {instance.get('cpu_usage', 'N/A')}%"
-                    f"\nNetwork RX: {instance.get('network_rx', 'N/A')} bytes"
-                    f"\nNetwork TX: {instance.get('network_tx', 'N/A')} bytes"
-                    f"\nProxy: {instance['proxy']}"
-                )
-            
-            time.sleep(5)
-            
-    except KeyboardInterrupt:
-        click.echo("\nMonitoring stopped")
+        if core.start_instance(instance_id):
+            logger.info(f"Instance {instance_id} started successfully")
+        else:
+            logger.error(f"Failed to start instance {instance_id}")
+            sys.exit(1)
     except Exception as e:
-        logger.error(f"Failed to monitor: {e}")
-        click.echo(click.style(f"\nError: {str(e)}", fg='red'))
+        logger.error(f"Failed to start instance: {str(e)}")
         sys.exit(1)
 
-if __name__ == '__main__':
-    cli() 
+@cli.command()
+@click.argument('instance_id')
+def stop(instance_id: str):
+    """Stop a running instance"""
+    try:
+        core = YashCore()
+        if core.stop_instance(instance_id):
+            logger.info(f"Instance {instance_id} stopped successfully")
+        else:
+            logger.error(f"Failed to stop instance {instance_id}")
+            sys.exit(1)
+    except Exception as e:
+        logger.error(f"Failed to stop instance: {str(e)}")
+        sys.exit(1)
+
+@cli.command()
+@click.argument('instance_id')
+@click.argument('new_proxy')
+def rotate_proxy(instance_id: str, new_proxy: str):
+    """Rotate proxy for an instance"""
+    try:
+        core = YashCore()
+        if core.rotate_proxy(instance_id, new_proxy):
+            logger.info(f"Proxy rotated successfully for instance {instance_id}")
+        else:
+            logger.error(f"Failed to rotate proxy for instance {instance_id}")
+            sys.exit(1)
+    except Exception as e:
+        logger.error(f"Failed to rotate proxy: {str(e)}")
+        sys.exit(1)
+
+@cli.command()
+def cleanup():
+    """Clean up stopped instances and temporary files"""
+    try:
+        core = YashCore()
+        core.cleanup()
+        logger.info("Cleanup completed successfully")
+    except Exception as e:
+        logger.error(f"Cleanup failed: {str(e)}")
+        sys.exit(1)
+
+def main():
+    """Main entry point for CLI"""
+    try:
+        cli()
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {str(e)}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main() 
