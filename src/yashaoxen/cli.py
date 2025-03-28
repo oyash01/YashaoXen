@@ -1,10 +1,11 @@
 import os
 import sys
+import json
 import time
 import click
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 from .core import YashCore
 from .proxy import ProxyManager
 from .install import Installer
@@ -15,6 +16,75 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("YashaoXen")
+
+CONFIG_DIR = "/etc/yashaoxen"
+
+def load_config() -> Dict:
+    """Load main configuration file."""
+    config_file = os.path.join(CONFIG_DIR, "config.json")
+    try:
+        with open(config_file) as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to load config: {str(e)}")
+        sys.exit(1)
+
+def load_features() -> Dict:
+    """Load feature toggles."""
+    feature_file = os.path.join(CONFIG_DIR, "features.json")
+    try:
+        with open(feature_file) as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to load features: {str(e)}")
+        sys.exit(1)
+
+def load_proxies() -> List[str]:
+    """Load proxy list."""
+    proxy_file = os.path.join(CONFIG_DIR, "proxies.txt")
+    try:
+        with open(proxy_file) as f:
+            return [line.strip() for line in f if line.strip()]
+    except Exception as e:
+        logger.error(f"Failed to load proxies: {str(e)}")
+        sys.exit(1)
+
+def load_dns() -> Dict[str, str]:
+    """Load DNS configuration."""
+    dns_file = os.path.join(CONFIG_DIR, "dns.txt")
+    try:
+        dns_config = {}
+        with open(dns_file) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    domain, ip = line.split()
+                    dns_config[domain] = ip
+        return dns_config
+    except Exception as e:
+        logger.error(f"Failed to load DNS config: {str(e)}")
+        sys.exit(1)
+
+def load_devices() -> List[Dict]:
+    """Load device configurations."""
+    device_file = os.path.join(CONFIG_DIR, "devices.txt")
+    try:
+        devices = []
+        with open(device_file) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    name, hw_id, bandwidth, location = line.split(",")
+                    devices.append({
+                        "name": name,
+                        "hardware_id": hw_id,
+                        "bandwidth": bandwidth,
+                        "location": location
+                    })
+        return devices
+    except Exception as e:
+        logger.error(f"Failed to load device config: {str(e)}")
+        sys.exit(1)
 
 def validate_proxy_file(ctx, param, value):
     """Validate proxy file exists and has valid content"""
@@ -84,129 +154,65 @@ def install():
         sys.exit(1)
 
 @cli.command()
-def init():
-    """Initialize YashaoXen configuration"""
+def start():
+    """Start YashaoXen with configuration from files"""
     try:
-        core = YashCore()
-        status = core.check_installation()
+        # Load all configurations
+        config = load_config()
+        features = load_features()
+        proxies = load_proxies()
+        dns_config = load_dns()
+        devices = load_devices()
         
-        if not all(status.values()):
-            logger.error("System not properly configured. Please run: sudo yashaoxen install")
-            for component, configured in status.items():
-                if not configured:
-                    logger.error(f"{component} not properly configured")
-            sys.exit(1)
-        
-        logger.info("YashaoXen initialized successfully!")
-        
-    except Exception as e:
-        logger.error(f"Initialization failed: {str(e)}")
-        sys.exit(1)
-
-@cli.command()
-@click.option('--proxy-file', '-p', 
-              type=click.Path(exists=True),
-              callback=validate_proxy_file,
-              help='File containing list of proxies (one per line)')
-@click.option('--memory', '-m',
-              type=click.Choice(['1G', '2G']),
-              default='1G',
-              help='Memory limit per instance')
-@click.option('--optimize', is_flag=True, help='Enable performance optimization')
-def create_instances(proxy_file: str, memory: str, optimize: bool):
-    """Create EarnApp instances from a proxy list"""
-    try:
-        # Load proxies
-        print_step("Loading proxies", 5, 1)
-        proxy_manager = ProxyManager(proxy_file)
-        if not proxy_manager.proxies:
-            click.echo(click.style("Error: No valid proxies found in file", fg='red'))
-            return
-
-        # Confirm action
-        if not optimize:
-            total_proxies = len(proxy_manager.proxies)
-            message = f"This will create {total_proxies} EarnApp instances using {memory} memory each.\nTotal memory required: {total_proxies * int(memory[0])}G\nDo you want to continue?"
-            if not confirm_action(message):
-                click.echo("Operation cancelled")
-                return
-
         # Initialize core
-        print_step("Initializing system", 5, 2)
         core = YashCore()
         
-        # Validate proxies
-        print_step("Validating proxies", 5, 3)
-        valid_proxies = []
-        with click.progressbar(proxy_manager.proxies,
-                             label='Validating proxies',
-                             item_show_func=lambda p: p if p else '') as proxies:
-            for proxy in proxies:
-                if proxy_manager.validate_proxy(proxy):
-                    valid_proxies.append(proxy)
-                time.sleep(1)  # Prevent too fast requests
-
-        if not valid_proxies:
-            click.echo(click.style("Error: No valid proxies found", fg='red'))
-            return
-
-        # Create instances
-        print_step("Creating instances", 5, 4)
-        created = 0
-        failed = 0
-        with click.progressbar(valid_proxies,
-                             label='Creating instances',
-                             item_show_func=lambda p: p if p else '') as proxies:
-            for proxy in proxies:
-                try:
-                    instance_id = core.create_instance(
-                        proxy_url=proxy,
-                        memory=memory
-                    )
-                    valid_proxies.append(proxy)
-                    created += 1
-                    time.sleep(2)  # Prevent too fast container creation
-                except Exception as e:
-                    logger.error(f"Failed to create instance with proxy {proxy}: {e}")
-                    failed += 1
-
-        # Print summary
-        print_step("Summary", 5, 5)
-        click.echo("\nInstance Creation Summary:")
-        click.echo(click.style(f"✓ Successfully created: {created}", fg='green'))
-        if failed > 0:
-            click.echo(click.style(f"✗ Failed to create: {failed}", fg='red'))
+        # Apply configurations
+        core.apply_config(config)
+        core.apply_features(features)
+        core.configure_dns(dns_config)
         
-        click.echo("\nTo monitor your instances, use:")
-        click.echo(click.style("  yashaoxen monitor", fg='cyan'))
-        click.echo("\nTo view instance status, use:")
-        click.echo(click.style("  yashaoxen status", fg='cyan'))
-
+        # Create instances for each proxy
+        for proxy in proxies:
+            try:
+                instance_id = core.create_instance(
+                    proxy_url=proxy,
+                    memory=config["system"]["memory_per_instance"]
+                )
+                logger.info(f"Created instance {instance_id}")
+            except Exception as e:
+                logger.error(f"Failed to create instance with proxy {proxy}: {str(e)}")
+        
+        logger.info("YashaoXen started successfully!")
+        
     except Exception as e:
-        logger.error(f"Failed to create instances: {e}")
-        click.echo(click.style(f"\nError: {str(e)}", fg='red'))
+        logger.error(f"Failed to start YashaoXen: {str(e)}")
         sys.exit(1)
 
 @cli.command()
-@click.argument('instance_id', required=False)
-def list_instances(instance_id: Optional[str]):
-    """List running instances and their status"""
+def stop():
+    """Stop all YashaoXen instances"""
+    try:
+        core = YashCore()
+        core.cleanup()
+        logger.info("All instances stopped successfully")
+    except Exception as e:
+        logger.error(f"Failed to stop instances: {str(e)}")
+        sys.exit(1)
+
+@cli.command()
+def status():
+    """Show status of all instances"""
     try:
         core = YashCore()
         instances = core.list_instances()
         
         if not instances:
-            logger.info("No instances found")
+            logger.info("No instances running")
             return
         
-        if instance_id:
-            instances = [i for i in instances if i['id'] == instance_id]
-            if not instances:
-                logger.error(f"Instance {instance_id} not found")
-                sys.exit(1)
-        
         for instance in instances:
-            logger.info(f"Instance {instance['id']}:")
+            logger.info(f"\nInstance {instance['id']}:")
             logger.info(f"  Status: {instance['status']}")
             logger.info(f"  Proxy: {instance['proxy']}")
             logger.info(f"  Memory: {instance['memory']}")
@@ -215,67 +221,68 @@ def list_instances(instance_id: Optional[str]):
                 logger.info(f"  Memory Usage: {instance['stats']['memory_usage']}")
                 logger.info(f"  Network RX: {instance['stats']['network_rx']}")
                 logger.info(f"  Network TX: {instance['stats']['network_tx']}")
-            logger.info("---")
         
     except Exception as e:
-        logger.error(f"Failed to list instances: {str(e)}")
+        logger.error(f"Failed to get status: {str(e)}")
         sys.exit(1)
 
 @cli.command()
-@click.argument('instance_id')
-def start(instance_id: str):
-    """Start a stopped instance"""
+def check():
+    """Check configuration and system status"""
     try:
+        # Check configuration files
+        logger.info("Checking configuration files...")
+        config = load_config()
+        features = load_features()
+        proxies = load_proxies()
+        dns_config = load_dns()
+        devices = load_devices()
+        
+        # Initialize core and check system
         core = YashCore()
-        if core.start_instance(instance_id):
-            logger.info(f"Instance {instance_id} started successfully")
-        else:
-            logger.error(f"Failed to start instance {instance_id}")
-            sys.exit(1)
+        status = core.check_installation()
+        
+        # Report results
+        logger.info("\nConfiguration Status:")
+        logger.info(f"  Main Config: {'Valid' if config else 'Invalid'}")
+        logger.info(f"  Features: {'Valid' if features else 'Invalid'}")
+        logger.info(f"  Proxies: {len(proxies)} found")
+        logger.info(f"  DNS Rules: {len(dns_config)} found")
+        logger.info(f"  Devices: {len(devices)} configured")
+        
+        logger.info("\nSystem Status:")
+        for component, status in status.items():
+            logger.info(f"  {component}: {'OK' if status else 'Failed'}")
+        
     except Exception as e:
-        logger.error(f"Failed to start instance: {str(e)}")
+        logger.error(f"Check failed: {str(e)}")
         sys.exit(1)
 
 @cli.command()
-@click.argument('instance_id')
-def stop(instance_id: str):
-    """Stop a running instance"""
+def rotate():
+    """Rotate proxies for all instances"""
     try:
         core = YashCore()
-        if core.stop_instance(instance_id):
-            logger.info(f"Instance {instance_id} stopped successfully")
-        else:
-            logger.error(f"Failed to stop instance {instance_id}")
-            sys.exit(1)
+        proxies = load_proxies()
+        
+        instances = core.list_instances()
+        if not instances:
+            logger.info("No instances to rotate")
+            return
+        
+        for instance in instances:
+            try:
+                # Get next proxy from list
+                next_proxy = proxies[instances.index(instance) % len(proxies)]
+                if core.rotate_proxy(instance['id'], next_proxy):
+                    logger.info(f"Rotated proxy for instance {instance['id']}")
+                else:
+                    logger.error(f"Failed to rotate proxy for instance {instance['id']}")
+            except Exception as e:
+                logger.error(f"Error rotating proxy: {str(e)}")
+        
     except Exception as e:
-        logger.error(f"Failed to stop instance: {str(e)}")
-        sys.exit(1)
-
-@cli.command()
-@click.argument('instance_id')
-@click.argument('new_proxy')
-def rotate_proxy(instance_id: str, new_proxy: str):
-    """Rotate proxy for an instance"""
-    try:
-        core = YashCore()
-        if core.rotate_proxy(instance_id, new_proxy):
-            logger.info(f"Proxy rotated successfully for instance {instance_id}")
-        else:
-            logger.error(f"Failed to rotate proxy for instance {instance_id}")
-            sys.exit(1)
-    except Exception as e:
-        logger.error(f"Failed to rotate proxy: {str(e)}")
-        sys.exit(1)
-
-@cli.command()
-def cleanup():
-    """Clean up stopped instances and temporary files"""
-    try:
-        core = YashCore()
-        core.cleanup()
-        logger.info("Cleanup completed successfully")
-    except Exception as e:
-        logger.error(f"Cleanup failed: {str(e)}")
+        logger.error(f"Failed to rotate proxies: {str(e)}")
         sys.exit(1)
 
 def main():
