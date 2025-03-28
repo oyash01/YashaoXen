@@ -1,0 +1,48 @@
+{
+    "earnapp": {
+        "device_name_prefix": "earn",
+        "max_instances": 50,
+        "bandwidth_limit": "100M",
+        "device_type": "linux",
+        "rotation_interval": 3600
+    },
+    "proxy": {
+        "enabled": true,
+        "rotation_interval": 300,
+        "dns_servers": [
+            "1.1.1.1",
+            "8.8.8.8"
+        ],
+        "connection_timeout": 10
+    },
+    "anti_detect": {
+        "enabled": true,
+        "os_version": "Ubuntu 20.04 LTS",
+        "hardware": {
+            "cpu_cores": [2, 4],
+            "memory": ["2G", "4G"],
+            "disk_size": ["20G", "50G"]
+        }
+    },
+    "network": {
+        "mtu": 1500,
+        "tcp_optimization": {
+            "enabled": true,
+            "buffer_size": 16777216,
+            "congestion_control": "bbr"
+        }
+    },
+    "monitoring": {
+        "enabled": true,
+        "interval": 60,
+        "telegram_alerts": {
+            "enabled": true,
+            "url": "",
+            "thresholds": {
+                "cpu": 90,
+                "memory": 85,
+                "disk": 90
+            }
+        }
+    }
+} 

@@ -1,0 +1,134 @@
+{
+    "system": {
+        "instances": {
+            "max_instances": 50,
+            "auto_scale": true,
+            "scale_up_threshold": 80,
+            "scale_down_threshold": 20
+        },
+        "monitoring": {
+            "enabled": true,
+            "interval": 60,
+            "telegram_webhook_url": "",
+            "alert_thresholds": {
+                "cpu": 90,
+                "memory": 85,
+                "disk": 90,
+                "network": 95
+            }
+        },
+        "log_level": "info"
+    },
+    "network": {
+        "tcp": {
+            "enabled": true,
+            "fastopen": true,
+            "bbr": true,
+            "window_size": 16777216,
+            "fingerprint": "ubuntu_20_04",
+            "advanced": {
+                "syn_retries": 3,
+                "keepalive_time": 60,
+                "keepalive_probes": 5,
+                "keepalive_intvl": 15,
+                "max_syn_backlog": 65536,
+                "max_tw_buckets": 1440000
+            }
+        },
+        "udp": {
+            "enabled": true,
+            "buffer_size": 65535,
+            "mtu": 1500,
+            "advanced": {
+                "rmem_default": 65536,
+                "wmem_default": 65536,
+                "rmem_max": 16777216,
+                "wmem_max": 16777216
+            }
+        }
+    },
+    "proxy": {
+        "enabled": true,
+        "type": "residential",
+        "rotation_interval": 3600,
+        "rotation_strategy": "round_robin",
+        "dns": {
+            "primary": "1.1.1.1",
+            "secondary": "8.8.8.8",
+            "timeout": 3,
+            "rotate": true
+        },
+        "advanced": {
+            "connection_timeout": 10,
+            "read_timeout": 30,
+            "retry_attempts": 3,
+            "keep_alive": true
+        }
+    },
+    "anti_detection": {
+        "os_spoofing": {
+            "enabled": true,
+            "randomize_interval": 86400,
+            "profiles": ["ubuntu_20_04", "ubuntu_22_04", "debian_11"]
+        },
+        "browser_masking": {
+            "enabled": true,
+            "randomize_interval": 3600,
+            "profiles": ["chrome", "firefox", "safari"]
+        },
+        "hardware_signature": {
+            "mode": "random",
+            "update_interval": 86400,
+            "components": ["cpu", "memory", "disk", "network"]
+        },
+        "traffic_pattern": {
+            "mode": "natural",
+            "variance": 0.2,
+            "peak_hours": ["09:00-17:00", "20:00-23:00"]
+        },
+        "advanced": {
+            "canvas_noise": true,
+            "webgl_noise": true,
+            "audio_noise": true,
+            "timezone_masking": true,
+            "language_rotation": true
+        }
+    },
+    "earnapp": {
+        "uuid_prefix": "sdk-node-",
+        "performance": {
+            "bypass_limits": true,
+            "max_bandwidth": true,
+            "aggressive_mode": true,
+            "optimization_level": 3,
+            "advanced": {
+                "connection_multiplier": 2,
+                "buffer_size": "16M",
+                "max_concurrent_requests": 1000,
+                "keepalive_timeout": 300
+            }
+        },
+        "stability": {
+            "auto_restart": true,
+            "restart_interval": 86400,
+            "health_check_interval": 300,
+            "error_threshold": 5
+        }
+    },
+    "docker": {
+        "image": "earnapp:latest",
+        "network_mode": "host",
+        "capabilities": ["NET_ADMIN", "SYS_ADMIN"],
+        "volumes": [
+            "/etc/earnapp:/etc/earnapp",
+            "/var/run/docker.sock:/var/run/docker.sock"
+        ],
+        "resources": {
+            "cpu_limit": "0.5",
+            "memory_limit": "1G",
+            "memory_reservation": "512M",
+            "io_weight": 500,
+            "network_priority": 3
+        }
+    }
+} 
