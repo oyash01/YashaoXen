@@ -1,156 +1,184 @@
 # YashaoXen (夜殇玄)
 
+<p align="center">
+  <img src="docs/assets/logo.png" alt="YashaoXen Logo" width="200"/>
+  <br>
+  <em>Night's Dark Mystery - The Ultimate Optimization Framework</em>
+</p>
+
 YashaoXen is a legendary optimization framework forged from the fusion of Eastern mysticism and modern technology. Named after the ancient Chinese concept of "Night's Dark Mystery" (夜殇玄), it embodies the perfect balance of power and stealth.
 
-## Features
+[![GitHub license](https://img.shields.io/github/license/oyash01/YashaoXen)](https://github.com/oyash01/YashaoXen/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/oyash01/YashaoXen)](https://github.com/oyash01/YashaoXen/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/oyash01/YashaoXen)](https://github.com/oyash01/YashaoXen/issues)
 
-- 🌒 YashCore™ optimization engine
-- 🐉 Dragon's Breath traffic acceleration
-- 🌌 Void Walker proxy system
-- ⚡ Thunder Strike pattern matching
-- 🏮 Red Lantern stealth protocols
-- 🗝️ Jade Key encryption suite
-- 🌪️ Storm Lord load balancing
-- 🎭 Shadow Master identity rotation
-- ⚔️ Samurai Shield protection
-- 🔮 Oracle Eye pattern analysis
+## 🌟 Core Features
 
-## Installation
+### 🌒 YashCore™ Technology
+- Advanced optimization engine
+- Dynamic resource allocation
+- Intelligent traffic shaping
+- Real-time performance monitoring
 
-1. Clone the repository:
+### 🐉 Dragon's Breath System
+- Ultra-fast traffic acceleration
+- Custom TCP/IP stack optimization
+- Advanced congestion control
+- Multi-threaded processing
+
+### 🌌 Void Walker Security
+- Military-grade encryption
+- Advanced proxy tunneling
+- Pattern-based threat detection
+- Real-time security monitoring
+
+### ⚡ Performance Features
+- Thunder Strike pattern matching
+- Storm Lord load balancing
+- Oracle Eye analytics
+- Quantum pattern analysis
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.8+
+- Docker & Docker Compose
+- Linux/Unix environment
+- Root privileges
+
+### Installation
 ```bash
-git clone https://github.com/jonfedric/YashaoXen.git
+# Clone the repository
+git clone https://github.com/oyash01/YashaoXen.git
 cd YashaoXen
-```
 
-2. Install dependencies:
-```bash
+# Install dependencies
 pip install -r requirements.txt
+
+# Run setup wizard
+python -m yashaoxen setup
 ```
 
-3. Run the setup wizard:
+### Basic Usage
 ```bash
-python -m aethernode setup
+# Configure settings
+python -m yashaoxen config wizard
+
+# Create instances
+python -m yashaoxen create-instances --memory 1G --proxy-file proxies.txt
+
+# Monitor instances
+python -m yashaoxen list-instances
 ```
 
-## Quick Start
+## 📚 Documentation
 
-1. Configure your settings:
+### Configuration Management
 ```bash
-python -m aethernode config wizard
-```
-
-2. Create instances from a proxy list:
-```bash
-python -m aethernode create-instances --memory 1G --proxy-file proxies.txt
-```
-
-3. Monitor your instances:
-```bash
-python -m aethernode list-instances
-```
-
-## Configuration Management
-
-### Basic Configuration
-```bash
-# Run configuration wizard
-python -m aethernode config wizard
-
-# Show current configuration
-python -m aethernode config show
+# Show current config
+python -m yashaoxen config show
 
 # Edit configuration
-python -m aethernode config edit
+python -m yashaoxen config edit
 
-# Validate configuration
-python -m aethernode config validate
+# Backup configuration
+python -m yashaoxen config backup
 ```
 
-### Backup and Restore
+### Security Features
 ```bash
-# Create backup
-python -m aethernode config backup
+# Enable Void Walker security
+python -m yashaoxen security enable-void-walker
 
-# Restore from backup
-python -m aethernode config restore
+# Configure Dragon's Breath
+python -m yashaoxen performance configure-dragon-breath
 
-# Reset to defaults
-python -m aethernode config reset
+# Enable Thunder Strike
+python -m yashaoxen security enable-thunder-strike
 ```
 
-## Safeguard Management
-
+### Performance Optimization
 ```bash
-# Show safeguard status
-python -m aethernode safeguard status
-
-# Enable/disable safeguard
-python -m aethernode safeguard toggle --enable
-python -m aethernode safeguard toggle --disable
-
-# Configure detection
-python -m aethernode safeguard configure-detection --detection --logging --auto-learn
-
-# Configure blocking methods
-python -m aethernode safeguard configure-blocking --dns --ip --pattern --hosts
-
-# Add patterns
-python -m aethernode safeguard add-pattern domains example.com
-python -m aethernode safeguard add-pattern ips 1.2.3.4
-python -m aethernode safeguard add-pattern request_patterns "/verify/*"
-```
-
-## Update Management
-
-```bash
-# Check for updates
-python -m aethernode update check
-
-# Install updates
-python -m aethernode update install
-
-# List backups
-python -m aethernode update list-backups
-
-# Rollback to previous version
-python -m aethernode update rollback
-```
-
-## Instance Management
-
-```bash
-# Create instances
-python -m aethernode create-instances --memory 1G --proxy-file proxies.txt
-
-# List instances
-python -m aethernode list-instances
-
-# Stop instance
-python -m aethernode stop-instance INSTANCE_ID
-
-# Restart instance
-python -m aethernode restart-instance INSTANCE_ID
-```
-
-## Performance Configuration
-
-```bash
-# Configure memory and CPU
-python -m aethernode configure-performance --memory 1G --cpu-shares 512
-
 # Enable aggressive mode
-python -m aethernode configure-performance --aggressive
+python -m yashaoxen performance set-aggressive
+
+# Configure Storm Lord
+python -m yashaoxen performance configure-storm-lord
+
+# Enable Oracle Eye
+python -m yashaoxen analytics enable-oracle-eye
 ```
 
-## Security Configuration
+## 🛡️ Security Features
 
-```bash
-# Configure security features
-python -m aethernode configure-security --seccomp --apparmor --network-isolation
+### Void Walker System
+- Advanced proxy tunneling
+- Pattern-based detection
+- Real-time monitoring
+- Threat prevention
+
+### Red Lantern Protocol
+- Traffic obfuscation
+- Deep packet inspection
+- Protocol manipulation
+- Signature masking
+
+### Jade Key Suite
+- Military-grade encryption
+- Secure key exchange
+- Certificate management
+- Identity verification
+
+## 🔧 Advanced Configuration
+
+### Performance Tuning
+```json
+{
+  "performance": {
+    "dragon_breath": {
+      "aggressive_mode": true,
+      "tcp_optimization": true,
+      "congestion_control": "bbr"
+    },
+    "storm_lord": {
+      "load_balancing": "adaptive",
+      "thread_count": "auto"
+    }
+  }
+}
 ```
 
-## Contributing
+### Security Configuration
+```json
+{
+  "security": {
+    "void_walker": {
+      "encryption_level": "military",
+      "pattern_detection": true
+    },
+    "red_lantern": {
+      "obfuscation": true,
+      "deep_inspection": true
+    }
+  }
+}
+```
+
+## 📊 Monitoring & Analytics
+
+### Oracle Eye Dashboard
+- Real-time performance metrics
+- Security event monitoring
+- Resource utilization
+- Traffic analysis
+
+### Thunder Strike Analytics
+- Pattern detection
+- Anomaly identification
+- Performance tracking
+- Security alerts
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
@@ -158,17 +186,32 @@ python -m aethernode configure-security --seccomp --apparmor --network-isolation
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## License
+## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Support
+## 🆘 Support
 
-If you encounter any issues or have questions, please:
-1. Check the documentation
-2. Look for similar issues in the issue tracker
-3. Create a new issue if needed
+If you encounter any issues:
+1. Check the [documentation](docs/README.md)
+2. Look through [existing issues](https://github.com/oyash01/YashaoXen/issues)
+3. Create a [new issue](https://github.com/oyash01/YashaoXen/issues/new)
 
-## Changelog
+## 🔄 Updates
 
-See [CHANGELOG.md](CHANGELOG.md) for a list of changes in each version.
+Stay updated with the latest features:
+```bash
+# Check for updates
+python -m yashaoxen update check
+
+# Install updates
+python -m yashaoxen update install
+```
+
+## 🌟 Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=oyash01/YashaoXen&type=Date)](https://star-history.com/#oyash01/YashaoXen&Date)
+
+## 🙏 Acknowledgments
+
+Special thanks to all contributors and the open-source community.
