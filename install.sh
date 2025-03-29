@@ -22,10 +22,12 @@ fi
 
 # Function to check if script is being piped
 is_piped() {
-    if [ -t 1 ]; then
-        return 1  # Terminal is interactive
+    if [ -t 0 ]; then
+        # Terminal has stdin (interactive)
+        return 1
     else
-        return 0  # Terminal is non-interactive (piped)
+        # No stdin (non-interactive/piped)
+        return 0
     fi
 }
 
@@ -275,32 +277,36 @@ main_install() {
 
 # Main menu function
 show_menu() {
-    clear
-    echo -e "${GREEN}╔═══════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║         YashaoXen One-Click Setup         ║${NC}"
-    echo -e "${GREEN}╚═══════════════════════════════════════════╝${NC}"
-    echo
-    echo "1) Install YashaoXen"
-    echo "2) Run YashaoXen"
-    echo "3) Exit"
-    echo
-    read -p "Select an option: " choice
-    
-    case $choice in
-        1)
-            main_install
-            ;;
-        2)
-            run_yashaoxen
-            ;;
-        3)
-            exit 0
-            ;;
-        *)
-            print_error "Invalid option"
-            exit 1
-            ;;
-    esac
+    while true; do
+        clear
+        echo -e "${GREEN}╔═══════════════════════════════════════════╗${NC}"
+        echo -e "${GREEN}║         YashaoXen One-Click Setup         ║${NC}"
+        echo -e "${GREEN}╚═══════════════════════════════════════════╝${NC}"
+        echo
+        echo "1) Install YashaoXen"
+        echo "2) Run YashaoXen"
+        echo "3) Exit"
+        echo
+        read -p "Select an option (1-3): " choice
+        
+        case "$choice" in
+            1)
+                main_install
+                break
+                ;;
+            2)
+                run_yashaoxen
+                break
+                ;;
+            3)
+                exit 0
+                ;;
+            *)
+                print_error "Invalid option. Please enter 1, 2, or 3"
+                sleep 2
+                ;;
+        esac
+    done
 }
 
 # Check if being run through pipe (curl) or directly
