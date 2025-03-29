@@ -1,41 +1,35 @@
 from setuptools import setup, find_packages
 
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
-
-with open("requirements.txt", "r", encoding="utf-8") as fh:
-    requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
-
 setup(
     name="yashaoxen",
     version="1.0.0",
-    author="oyash01",
-    author_email="charliehackerhack@gmail.com",
-    description="Advanced EarnApp Management Tool with Multi-Proxy Support",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    url="https://github.com/oyash01/YashaoXen",
-    packages=find_packages(where="src"),
-    package_dir={"": "src"},
-    classifiers=[
-        "Development Status :: 4 - Beta",
-        "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: POSIX :: Linux",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Topic :: Internet :: Proxy Servers",
-        "Topic :: System :: Systems Administration",
+    packages=find_packages(),
+    install_requires=[
+        "python-iptables>=1.0.1",
+        "docker>=6.1.3",
+        "requests>=2.31.0",
+        "psutil>=5.9.8",
+        "PyYAML>=6.0.1",
+        "click>=8.1.7",
+        "rich>=13.7.0",
+        "python-dotenv>=1.0.1",
+        "schedule>=1.2.1",
+        "prometheus-client>=0.19.0",
     ],
-    python_requires=">=3.8",
-    install_requires=requirements,
     entry_points={
-        "console_scripts": [
-            "yashaoxen=yashaoxen.cli:main",
+        'console_scripts': [
+            'yashaoxen-manager=yashaoxen.cli:main',
         ],
     },
-    include_package_data=True,
-    zip_safe=False,
+    author="oyash01",
+    description="Professional EarnApp Management System with Advanced Proxy Support",
+    long_description=open("README.md").read(),
+    long_description_content_type="text/markdown",
+    url="https://github.com/oyash01/YashaoXen",
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: POSIX :: Linux",
+    ],
+    python_requires=">=3.8",
 ) 

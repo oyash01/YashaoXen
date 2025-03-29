@@ -111,6 +111,23 @@ setup_python_env() {
     # Update pip and install basic tools
     pip install --upgrade pip wheel setuptools
 
+    # Create requirements.txt if it doesn't exist
+    if [ ! -f "requirements.txt" ]; then
+        print_info "Creating requirements.txt..."
+        cat > requirements.txt << EOF
+python-iptables==1.0.1
+docker==6.1.3
+requests==2.31.0
+psutil==5.9.8
+PyYAML==6.0.1
+click==8.1.7
+rich==13.7.0
+python-dotenv==1.0.1
+schedule==1.2.1
+prometheus-client==0.19.0
+EOF
+    fi
+
     # Create a backup of requirements.txt
     cp requirements.txt requirements.txt.bak
     
@@ -130,7 +147,11 @@ setup_python_env() {
     fi
     
     # Install the package in development mode
-    pip install -e .
+    if [ -f "setup.py" ]; then
+        pip install -e .
+    else
+        print_info "No setup.py found, skipping package installation"
+    fi
     
     # Cleanup
     rm -f requirements.txt.bak
