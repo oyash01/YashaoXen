@@ -20,6 +20,15 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Function to check if script is being piped
+is_piped() {
+    if [ -t 1 ]; then
+        return 1  # Terminal is interactive
+    else
+        return 0  # Terminal is non-interactive (piped)
+    fi
+}
+
 # Function to check Python version
 check_python_version() {
     print_header "Checking Python Version"
@@ -236,6 +245,34 @@ run_yashaoxen() {
     /usr/local/bin/yashaoxen
 }
 
+# Main installation function
+main_install() {
+    clear
+    echo -e "${GREEN}╔═══════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║         YashaoXen Installation           ║${NC}"
+    echo -e "${GREEN}╚═══════════════════════════════════════════╝${NC}"
+    echo
+    
+    # Installation steps with error handling
+    install_dependencies || exit 1
+    setup_python_env || exit 1
+    setup_directories || exit 1
+    init_configurations || exit 1
+    
+    # Verify installation
+    if ! verify_installation; then
+        print_error "Installation verification failed"
+        print_info "Please check the error messages above and try again"
+        exit 1
+    fi
+    
+    echo
+    print_success "YashaoXen installation completed successfully!"
+    echo
+    print_info "To start YashaoXen, simply run: sudo yashaoxen"
+    echo
+}
+
 # Main menu function
 show_menu() {
     clear
@@ -266,33 +303,11 @@ show_menu() {
     esac
 }
 
-# Main installation function
-main_install() {
-    clear
-    echo -e "${GREEN}╔═══════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║         YashaoXen Installation           ║${NC}"
-    echo -e "${GREEN}╚═══════════════════════════════════════════╝${NC}"
-    echo
-    
-    # Installation steps with error handling
-    install_dependencies || exit 1
-    setup_python_env || exit 1
-    setup_directories || exit 1
-    init_configurations || exit 1
-    
-    # Verify installation
-    if ! verify_installation; then
-        print_error "Installation verification failed"
-        print_info "Please check the error messages above and try again"
-        exit 1
-    fi
-    
-    echo
-    print_success "YashaoXen installation completed successfully!"
-    echo
-    print_info "To start YashaoXen, simply run: sudo yashaoxen"
-    echo
-}
-
-# Show the menu by default
-show_menu 
+# Check if being run through pipe (curl) or directly
+if is_piped; then
+    # When piped (e.g., through curl), run installation directly
+    main_install
+else
+    # When run directly, show interactive menu
+    show_menu
+fi 
