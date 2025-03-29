@@ -1,0 +1,144 @@
+#!/bin/bash
+
+# Source library files
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+source "$SCRIPT_DIR/lib/colors.sh"
+source "$SCRIPT_DIR/lib/safeguards.sh"
+source "$SCRIPT_DIR/lib/features.sh"
+
+# Initialize configurations
+init_configs() {
+    mkdir -p /etc/yashaoxen
+    init_safeguards
+    init_features
+}
+
+# Show main menu
+show_main_menu() {
+    while true; do
+        clear
+        echo -e "${GREEN}╔═══════════════════════════════════════════╗${NC}"
+        echo -e "${GREEN}║         YashaoXen Management Tool         ║${NC}"
+        echo -e "${GREEN}╚═══════════════════════════════════════════╝${NC}"
+        echo -e "${BLUE}Version: 1.0.0${NC}\n"
+        
+        echo -e "${PURPLE}=== System Management ===${NC}"
+        echo "1) Manage Instances"
+        echo "2) Configure Proxies"
+        echo "3) Configure DNS"
+        
+        echo -e "\n${PURPLE}=== Security & Features ===${NC}"
+        echo "4) Configure Safeguards"
+        echo "5) Manage Features"
+        
+        echo -e "\n${PURPLE}=== Maintenance ===${NC}"
+        echo "6) Update YashaoXen"
+        echo "7) Backup Configuration"
+        echo "8) View Logs"
+        
+        echo -e "\n${PURPLE}=== Monitoring ===${NC}"
+        echo "9) Show Status"
+        echo "10) Performance Stats"
+        
+        echo -e "\n11) ${RED}Exit${NC}"
+        echo
+        read -p "Select an option: " choice
+        
+        case $choice in
+            1) manage_instances ;;
+            2) configure_proxies ;;
+            3) configure_dns ;;
+            4) configure_safeguards ;;
+            5) configure_features ;;
+            6) update_yashaoxen ;;
+            7) backup_configs ;;
+            8) view_logs ;;
+            9) show_status ;;
+            10) show_performance ;;
+            11) exit 0 ;;
+            *) print_error "Invalid option" ;;
+        esac
+        
+        if [ $? -ne 0 ]; then
+            print_error "Command failed"
+            read -p "Press Enter to continue..."
+        fi
+    done
+}
+
+# View logs function
+view_logs() {
+    clear
+    print_header "Log Viewer"
+    echo
+    echo "1) Show all logs"
+    echo "2) Show error logs"
+    echo "3) Show proxy logs"
+    echo "4) Show instance logs"
+    echo "5) Back to main menu"
+    echo
+    read -p "Select an option: " choice
+    
+    case $choice in
+        1) yashaoxen logs | less ;;
+        2) yashaoxen logs --level error | less ;;
+        3) yashaoxen logs --component proxy | less ;;
+        4) yashaoxen logs --component instance | less ;;
+        5) return ;;
+        *) print_error "Invalid option" ;;
+    esac
+}
+
+# Show status function
+show_status() {
+    clear
+    print_header "System Status"
+    echo
+    
+    # Check service status
+    if systemctl is-active --quiet yashaoxen; then
+        print_success "YashaoXen Service: Running"
+    else
+        print_error "YashaoXen Service: Stopped"
+    fi
+    
+    # Show instance count
+    instance_count=$(yashaoxen status | grep -c "running")
+    print_info "Running Instances: $instance_count"
+    
+    # Show resource usage
+    print_info "Resource Usage:"
+    echo "CPU: $(top -bn1 | grep "Cpu(s)" | awk '{print $2}')%"
+    echo "Memory: $(free -m | awk 'NR==2{printf "%.2f%%", $3*100/$2}')"
+    
+    # Show proxy status
+    proxy_count=$(wc -l < /etc/yashaoxen/proxies.txt 2>/dev/null || echo 0)
+    print_info "Active Proxies: $proxy_count"
+    
+    read -p "Press Enter to continue..."
+}
+
+# Show performance stats
+show_performance() {
+    clear
+    print_header "Performance Statistics"
+    echo
+    
+    if is_safeguard_enabled "monitoring_enabled"; then
+        yashaoxen stats
+    else
+        print_warning "Monitoring is disabled. Enable it in Safeguards configuration."
+    fi
+    
+    read -p "Press Enter to continue..."
+}
+
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then 
+    print_error "Please run as root (use sudo)"
+    exit 1
+fi
+
+# Initialize and show menu
+init_configs
+show_main_menu 
