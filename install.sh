@@ -213,13 +213,13 @@ verify_installation() {
     if ! [ -x "/usr/local/bin/yashaoxen" ]; then
         print_error "YashaoXen command verification failed"
         return 1
-    }
+    fi
     
     # Check configurations
     if ! [ -f "/etc/yashaoxen/safeguards.json" ] || ! [ -f "/etc/yashaoxen/features.json" ]; then
         print_error "Configuration verification failed"
         return 1
-    }
+    fi
     
     print_success "Installation verified successfully"
     return 0
