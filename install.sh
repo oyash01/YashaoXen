@@ -148,9 +148,20 @@ EOF
     
     # Install the package in development mode
     if [ -f "setup.py" ]; then
-        pip install -e .
+        print_info "Installing YashaoXen package..."
+        # Copy source files to /opt/yashaoxen/src
+        mkdir -p /opt/yashaoxen/src
+        cp -r src/* /opt/yashaoxen/src/
+        
+        # Install the package
+        cd /opt/yashaoxen && pip install -e .
+        if [ $? -ne 0 ]; then
+            print_error "Failed to install YashaoXen package"
+            exit 1
+        fi
     else
-        print_info "No setup.py found, skipping package installation"
+        print_error "setup.py not found. Cannot install YashaoXen package."
+        exit 1
     fi
     
     # Cleanup
@@ -182,14 +193,14 @@ if [ "\$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Activate virtual environment
+# Activate virtual environment and set Python path
 source /opt/yashaoxen/venv/bin/activate || {
     echo -e "${RED}Error: Failed to activate virtual environment${NC}"
     exit 1
 }
 
-# Set Python path
-export PYTHONPATH=/opt/yashaoxen:\$PYTHONPATH
+# Set Python path to include the package
+export PYTHONPATH=/opt/yashaoxen/src:\$PYTHONPATH
 
 # Run manager with arguments
 yashaoxen-manager "\$@"
