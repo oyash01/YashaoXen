@@ -1,3 +1,7 @@
+"""
+YashaoXen CLI - Advanced EarnApp Management Tool
+"""
+
 import os
 import sys
 import json
@@ -6,9 +10,14 @@ import click
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional
+from rich.console import Console
+from rich.table import Table
+from rich.prompt import Prompt, Confirm
+from rich.panel import Panel
 from .core import YashCore
 from .proxy import ProxyManager
 from .install import Installer
+from .security import SecurityManager
 
 # Configure logging
 logging.basicConfig(
@@ -17,21 +26,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger("YashaoXen")
 
-CONFIG_DIR = "/etc/yashaoxen"
+console = Console()
 
-def load_config() -> Dict:
-    """Load main configuration file."""
-    config_file = os.path.join(CONFIG_DIR, "config.json")
-    try:
-        with open(config_file) as f:
+def load_config():
+    """Load YashaoXen configuration."""
+    config_file = "/etc/yashaoxen/config.json"
+    if os.path.exists(config_file):
+        with open(config_file, 'r') as f:
             return json.load(f)
-    except Exception as e:
-        logger.error(f"Failed to load config: {str(e)}")
-        sys.exit(1)
+    return {}
+
+def save_config(config):
+    """Save YashaoXen configuration."""
+    os.makedirs("/etc/yashaoxen", exist_ok=True)
+    with open("/etc/yashaoxen/config.json", 'w') as f:
+        json.dump(config, f, indent=4)
 
 def load_features() -> Dict:
     """Load feature toggles."""
-    feature_file = os.path.join(CONFIG_DIR, "features.json")
+    feature_file = "/etc/yashaoxen/features.json"
     try:
         with open(feature_file) as f:
             return json.load(f)
@@ -41,7 +54,7 @@ def load_features() -> Dict:
 
 def load_proxies() -> List[str]:
     """Load proxy list."""
-    proxy_file = os.path.join(CONFIG_DIR, "proxies.txt")
+    proxy_file = "/etc/yashaoxen/proxies.txt"
     try:
         with open(proxy_file) as f:
             return [line.strip() for line in f if line.strip()]
@@ -51,7 +64,7 @@ def load_proxies() -> List[str]:
 
 def load_dns() -> Dict[str, str]:
     """Load DNS configuration."""
-    dns_file = os.path.join(CONFIG_DIR, "dns.txt")
+    dns_file = "/etc/yashaoxen/dns.txt"
     try:
         dns_config = {}
         with open(dns_file) as f:
@@ -67,7 +80,7 @@ def load_dns() -> Dict[str, str]:
 
 def load_devices() -> List[Dict]:
     """Load device configurations."""
-    device_file = os.path.join(CONFIG_DIR, "devices.txt")
+    device_file = "/etc/yashaoxen/devices.txt"
     try:
         devices = []
         with open(device_file) as f:
@@ -140,157 +153,144 @@ def cli():
     print_banner()
 
 @cli.command()
-def install():
-    """Install YashaoXen and its dependencies"""
-    if os.geteuid() != 0:
-        logger.error("Installation requires root privileges. Please run with sudo.")
-        sys.exit(1)
+def setup():
+    """Interactive setup wizard"""
+    console.print(Panel.fit("Welcome to YashaoXen Setup Wizard!", style="bold green"))
     
-    installer = Installer()
-    if installer.run_installation():
-        logger.info("Installation completed successfully!")
-    else:
-        logger.error("Installation failed!")
-        sys.exit(1)
+    # Setup EarnApp
+    config = setup_earnapp()
+    
+    # Setup proxies
+    setup_proxies()
+    
+    # Initialize core
+    core = YashCore()
+    
+    # Start instances
+    if Confirm.ask("Would you like to start YashaoXen now?"):
+        core.start_all()
+        show_status(core)
 
 @cli.command()
 def start():
-    """Start YashaoXen with configuration from files"""
+    """Start YashaoXen with current configuration"""
     try:
-        # Load all configurations
-        config = load_config()
-        features = load_features()
-        proxies = load_proxies()
-        dns_config = load_dns()
-        devices = load_devices()
-        
-        # Initialize core
         core = YashCore()
-        
-        # Apply configurations
-        core.apply_config(config)
-        core.apply_features(features)
-        core.configure_dns(dns_config)
-        
-        # Create instances for each proxy
-        for proxy in proxies:
-            try:
-                instance_id = core.create_instance(
-                    proxy_url=proxy,
-                    memory=config["system"]["memory_per_instance"]
-                )
-                logger.info(f"Created instance {instance_id}")
-            except Exception as e:
-                logger.error(f"Failed to create instance with proxy {proxy}: {str(e)}")
-        
-        logger.info("YashaoXen started successfully!")
-        
+        core.start_all()
+        show_status(core)
     except Exception as e:
-        logger.error(f"Failed to start YashaoXen: {str(e)}")
-        sys.exit(1)
+        console.print(f"[red]Error: {str(e)}[/red]")
 
 @cli.command()
 def stop():
     """Stop all YashaoXen instances"""
     try:
         core = YashCore()
-        core.cleanup()
-        logger.info("All instances stopped successfully")
+        core.stop_all()
+        console.print("[green]All instances stopped successfully[/green]")
     except Exception as e:
-        logger.error(f"Failed to stop instances: {str(e)}")
-        sys.exit(1)
+        console.print(f"[red]Error: {str(e)}[/red]")
 
 @cli.command()
 def status():
     """Show status of all instances"""
     try:
         core = YashCore()
-        instances = core.list_instances()
-        
-        if not instances:
-            logger.info("No instances running")
-            return
-        
-        for instance in instances:
-            logger.info(f"\nInstance {instance['id']}:")
-            logger.info(f"  Status: {instance['status']}")
-            logger.info(f"  Proxy: {instance['proxy']}")
-            logger.info(f"  Memory: {instance['memory']}")
-            if 'stats' in instance:
-                logger.info(f"  CPU Usage: {instance['stats']['cpu_percent']}%")
-                logger.info(f"  Memory Usage: {instance['stats']['memory_usage']}")
-                logger.info(f"  Network RX: {instance['stats']['network_rx']}")
-                logger.info(f"  Network TX: {instance['stats']['network_tx']}")
-        
+        show_status(core)
     except Exception as e:
-        logger.error(f"Failed to get status: {str(e)}")
-        sys.exit(1)
-
-@cli.command()
-def check():
-    """Check configuration and system status"""
-    try:
-        # Check configuration files
-        logger.info("Checking configuration files...")
-        config = load_config()
-        features = load_features()
-        proxies = load_proxies()
-        dns_config = load_dns()
-        devices = load_devices()
-        
-        # Initialize core and check system
-        core = YashCore()
-        status = core.check_installation()
-        
-        # Report results
-        logger.info("\nConfiguration Status:")
-        logger.info(f"  Main Config: {'Valid' if config else 'Invalid'}")
-        logger.info(f"  Features: {'Valid' if features else 'Invalid'}")
-        logger.info(f"  Proxies: {len(proxies)} found")
-        logger.info(f"  DNS Rules: {len(dns_config)} found")
-        logger.info(f"  Devices: {len(devices)} configured")
-        
-        logger.info("\nSystem Status:")
-        for component, status in status.items():
-            logger.info(f"  {component}: {'OK' if status else 'Failed'}")
-        
-    except Exception as e:
-        logger.error(f"Check failed: {str(e)}")
-        sys.exit(1)
+        console.print(f"[red]Error: {str(e)}[/red]")
 
 @cli.command()
 def rotate():
     """Rotate proxies for all instances"""
     try:
         core = YashCore()
-        proxies = load_proxies()
-        
-        instances = core.list_instances()
-        if not instances:
-            logger.info("No instances to rotate")
-            return
-        
-        for instance in instances:
-            try:
-                # Get next proxy from list
-                next_proxy = proxies[instances.index(instance) % len(proxies)]
-                if core.rotate_proxy(instance['id'], next_proxy):
-                    logger.info(f"Rotated proxy for instance {instance['id']}")
-                else:
-                    logger.error(f"Failed to rotate proxy for instance {instance['id']}")
-            except Exception as e:
-                logger.error(f"Error rotating proxy: {str(e)}")
-        
+        core.rotate_proxies()
+        show_status(core)
     except Exception as e:
-        logger.error(f"Failed to rotate proxies: {str(e)}")
-        sys.exit(1)
+        console.print(f"[red]Error: {str(e)}[/red]")
+
+def setup_earnapp():
+    """Interactive EarnApp setup."""
+    console.print(Panel.fit("EarnApp Configuration", style="bold green"))
+    
+    config = load_config()
+    if not config.get("earnapp"):
+        config["earnapp"] = {}
+    
+    # Get EarnApp device token
+    while True:
+        token = Prompt.ask("Enter your EarnApp device token (from https://earnapp.com/devices)")
+        if token and len(token) > 10:  # Basic validation
+            config["earnapp"]["token"] = token
+            break
+        console.print("[red]Invalid token. Please enter a valid device token.[/red]")
+    
+    # Get number of instances
+    instances = Prompt.ask("How many instances do you want to run?", default="1")
+    config["earnapp"]["instances"] = int(instances)
+    
+    save_config(config)
+    return config
+
+def setup_proxies():
+    """Interactive proxy setup."""
+    console.print(Panel.fit("Proxy Configuration", style="bold green"))
+    
+    proxy_file = "/etc/yashaoxen/proxies.txt"
+    
+    # Create example proxy if file doesn't exist
+    if not os.path.exists(proxy_file):
+        os.makedirs(os.path.dirname(proxy_file), exist_ok=True)
+        with open(proxy_file, 'w') as f:
+            f.write("# Add your proxies here, one per line in format:\n")
+            f.write("# http://username:password@host:port\n")
+            f.write("# Example:\n")
+            f.write("# http://user:pass@proxy.example.com:8080\n")
+    
+    console.print(f"\nProxy file location: {proxy_file}")
+    console.print("Please add your proxies to this file, one per line.")
+    
+    if Confirm.ask("Would you like to add proxies now?"):
+        proxies = []
+        while True:
+            proxy = Prompt.ask("Enter proxy (or press Enter to finish)")
+            if not proxy:
+                break
+            proxies.append(proxy)
+        
+        if proxies:
+            with open(proxy_file, 'w') as f:
+                for proxy in proxies:
+                    f.write(f"{proxy}\n")
+    
+    return True
+
+def show_status(core):
+    """Show status of all instances."""
+    table = Table(title="YashaoXen Status")
+    table.add_column("Instance", style="cyan")
+    table.add_column("Status", style="green")
+    table.add_column("Proxy", style="blue")
+    table.add_column("Uptime", style="yellow")
+    
+    instances = core.list_instances()
+    for instance in instances:
+        table.add_row(
+            instance["name"],
+            instance["status"],
+            instance["proxy"],
+            instance["uptime"]
+        )
+    
+    console.print(table)
 
 def main():
-    """Main entry point for CLI"""
+    """Main entry point for the CLI."""
     try:
         cli()
     except Exception as e:
-        logger.error(f"An unexpected error occurred: {str(e)}")
+        console.print(f"[red]Error: {str(e)}[/red]")
         sys.exit(1)
 
 if __name__ == "__main__":

@@ -5,14 +5,21 @@ import random
 import socket
 import json
 import subprocess
-from typing import Dict, Any
+import os
+import requests
+from typing import Dict, Any, List
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 class ProxyHandler:
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.logger = logging.getLogger(__name__)
         self.active_tunnels = {}
+        self.proxies = []
+        self.current_index = 0
+        self._load_proxies()
         
     def setup_proxy(self, instance_id: str, proxy_config: Dict[str, str]) -> bool:
         """Setup TunSocks proxy tunnel for an instance"""
@@ -159,4 +166,78 @@ class ProxyHandler:
             
     def get_tunnel_info(self, instance_id: str) -> Dict[str, Any]:
         """Get tunnel information"""
-        return self.active_tunnels.get(instance_id, {}) 
+        return self.active_tunnels.get(instance_id, {})
+    
+    def get_next_proxy(self) -> str:
+        """Get next proxy from the list"""
+        try:
+            if not self.proxies:
+                raise ValueError("No proxies available")
+            
+            proxy = self.proxies[self.current_index]
+            self.current_index = (self.current_index + 1) % len(self.proxies)
+            
+            return proxy
+            
+        except Exception as e:
+            logger.error(f"Error getting next proxy: {e}")
+            raise
+    
+    def validate_proxy(self, proxy: str) -> bool:
+        """Validate proxy by testing connection"""
+        try:
+            proxies = {
+                "http": f"http://{proxy}",
+                "https": f"http://{proxy}"
+            }
+            
+            response = requests.get(
+                "https://earnapp.com",
+                proxies=proxies,
+                timeout=10
+            )
+            
+            return response.status_code == 200
+            
+        except Exception as e:
+            logger.warning(f"Proxy validation failed for {proxy}: {e}")
+            return False
+    
+    def _load_proxies(self) -> None:
+        """Load and validate proxies from file"""
+        try:
+            proxy_file = Path(self.config["proxy_file"])
+            if not proxy_file.exists():
+                raise FileNotFoundError(f"Proxy file not found: {proxy_file}")
+            
+            with open(proxy_file) as f:
+                raw_proxies = [line.strip() for line in f if line.strip()]
+            
+            # Validate proxies
+            valid_proxies = []
+            for proxy in raw_proxies:
+                if self.validate_proxy(proxy):
+                    valid_proxies.append(proxy)
+                    logger.info(f"Valid proxy found: {proxy}")
+                else:
+                    logger.warning(f"Invalid proxy: {proxy}")
+            
+            if not valid_proxies:
+                raise ValueError("No valid proxies found in file")
+            
+            self.proxies = valid_proxies
+            logger.info(f"Loaded {len(valid_proxies)} valid proxies")
+            
+        except Exception as e:
+            logger.error(f"Error loading proxies: {e}")
+            raise
+    
+    def rotate_proxies(self) -> None:
+        """Rotate proxy list"""
+        try:
+            random.shuffle(self.proxies)
+            self.current_index = 0
+            logger.info("Proxy list rotated")
+        except Exception as e:
+            logger.error(f"Error rotating proxies: {e}")
+            raise 

@@ -4,147 +4,180 @@ import os
 import logging
 import docker
 import uuid
-from typing import Dict, Any
+import json
+import subprocess
+from typing import Dict, Any, List, Optional
+from docker.types import Mount
 from pathlib import Path
-from .security_manager import SecurityManager
+from docker.errors import DockerException
+
+logger = logging.getLogger(__name__)
 
 class ContainerManager:
-    def __init__(self, config: Dict[str, Any]):
-        self.logger = logging.getLogger(__name__)
-        self.config = config
-        self.client = docker.from_env()
-        self.security_manager = SecurityManager()
-        
-    def start_container(self, instance_id: str, proxy_config: Dict[str, Any]) -> str:
-        """Start a new EarnApp container with security measures"""
+    def __init__(self):
         try:
-            container_name = f"earnapp_{instance_id}"
-            
-            # Set up security
-            self.security_manager.setup_container_isolation(container_name, self.config)
-            self.security_manager.setup_network_security(container_name, self.config)
-            
-            # Prepare container configuration
-            container_config = self._prepare_container_config(instance_id, proxy_config)
-            
-            # Create and start container
-            container = self.client.containers.run(**container_config)
-            
-            self.logger.info(f"Started container {container_name} with ID {container.id}")
-            return container.id
-            
-        except Exception as e:
-            self.logger.error(f"Failed to start container: {e}")
+            self.client = docker.from_env()
+        except DockerException as e:
+            logger.error(f"Failed to initialize Docker client: {str(e)}")
             raise
-            
-    def stop_container(self, container_id: str) -> None:
-        """Stop and remove a container"""
+
+    def create_container(self, name: str, image: str, environment: Dict[str, str]) -> bool:
+        """Create a new container"""
         try:
-            container = self.client.containers.get(container_id)
-            container_name = container.name
-            
-            # Stop container
+            # Check if container already exists
+            try:
+                existing = self.client.containers.get(name)
+                if existing:
+                    logger.warning(f"Container {name} already exists")
+                    return False
+            except docker.errors.NotFound:
+                pass
+
+            # Create container
+            container = self.client.containers.create(
+                image=image,
+                name=name,
+                environment=environment,
+                detach=True,
+                restart_policy={"Name": "unless-stopped"},
+                ports={'4040/tcp': None},  # Dynamic port mapping
+                volumes={
+                    '/etc/earnapp': {'bind': f'/etc/earnapp/{name}', 'mode': 'rw'},
+                    '/var/log/earnapp': {'bind': f'/var/log/earnapp/{name}', 'mode': 'rw'}
+                },
+                security_opt=[
+                    'no-new-privileges:true',
+                    'apparmor:unconfined'
+                ],
+                ulimits={
+                    'nofile': {'soft': 65536, 'hard': 65536}
+                },
+                sysctls={
+                    'net.ipv4.tcp_keepalive_time': '60',
+                    'net.ipv4.tcp_keepalive_intvl': '10',
+                    'net.ipv4.tcp_keepalive_probes': '6'
+                }
+            )
+
+            # Start container
+            container.start()
+            logger.info(f"Successfully created and started container: {name}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error creating container {name}: {str(e)}")
+            return False
+
+    def stop_container(self, name: str) -> bool:
+        """Stop a container"""
+        try:
+            container = self.client.containers.get(name)
             container.stop()
-            container.remove()
+            logger.info(f"Successfully stopped container: {name}")
+            return True
+        except Exception as e:
+            logger.error(f"Error stopping container {name}: {str(e)}")
+            return False
+
+    def remove_container(self, name: str) -> bool:
+        """Remove a container"""
+        try:
+            container = self.client.containers.get(name)
+            container.remove(force=True)
+            logger.info(f"Successfully removed container: {name}")
+            return True
+        except Exception as e:
+            logger.error(f"Error removing container {name}: {str(e)}")
+            return False
+
+    def get_container_status(self, name: str) -> Optional[str]:
+        """Get container status"""
+        try:
+            container = self.client.containers.get(name)
+            return container.status
+        except Exception as e:
+            logger.error(f"Error getting container status {name}: {str(e)}")
+            return None
+
+    def list_containers(self) -> list:
+        """List all containers"""
+        try:
+            containers = self.client.containers.list(all=True)
+            return [{
+                'name': c.name,
+                'status': c.status,
+                'image': c.image.tags[0] if c.image.tags else 'none'
+            } for c in containers]
+        except Exception as e:
+            logger.error(f"Error listing containers: {str(e)}")
+            return []
+
+    def get_container_logs(self, name: str, tail: int = 100) -> Optional[str]:
+        """Get container logs"""
+        try:
+            container = self.client.containers.get(name)
+            return container.logs(tail=tail).decode('utf-8')
+        except Exception as e:
+            logger.error(f"Error getting container logs {name}: {str(e)}")
+            return None
+
+    def _save_instance_config(self, container_id: str, config: Dict[str, Any]) -> None:
+        """Save instance configuration to file"""
+        try:
+            config_dir = Path("/etc/yashaoxen/config")
+            config_dir.mkdir(parents=True, exist_ok=True)
             
-            # Clean up security configurations
-            self._cleanup_security(container_name)
+            config_file = config_dir / f"instance-{container_id}.json"
+            with open(config_file, "w") as f:
+                json.dump(config, f, indent=4)
             
-            self.logger.info(f"Stopped and removed container {container_name}")
+            # Set appropriate permissions
+            os.chmod(config_file, 0o600)
             
         except Exception as e:
-            self.logger.error(f"Failed to stop container: {e}")
+            logger.error(f"Error saving instance config: {e}")
             raise
-            
-    def _prepare_container_config(self, instance_id: str, proxy_config: Dict[str, Any]) -> Dict[str, Any]:
-        """Prepare Docker container configuration"""
-        container_name = f"earnapp_{instance_id}"
-        
-        # Base configuration
-        config = {
-            'name': container_name,
-            'image': 'earnapp/earnapp:latest',
-            'detach': True,
-            'restart_policy': {'Name': 'unless-stopped'},
-            'network_mode': f"container:netns_{container_name}",
-            'security_opt': [
-                f"seccomp=/etc/docker/seccomp/{container_name}.json",
-                f"apparmor={container_name}"
-            ],
-            'environment': {
-                'EARNAPP_UUID': self.config['earnapp']['uuid'],
-                'PROXY_URL': f"{proxy_config['type']}://{proxy_config['host']}:{proxy_config['port']}",
-                'PROXY_USER': proxy_config.get('username'),
-                'PROXY_PASS': proxy_config.get('password')
-            }
-        }
-        
-        # Add resource limits
-        resources = self.config.get('container', {}).get('resources', {})
-        if resources:
-            config['mem_limit'] = resources.get('memory_limit', '1G')
-            config['cpu_shares'] = resources.get('cpu_shares', 1024)
-            
-        return config
-        
-    def _cleanup_security(self, container_name: str) -> None:
-        """Clean up security configurations for container"""
+    
+    def get_container(self, name: str) -> Dict[str, Any]:
+        """Get container details"""
         try:
-            # Remove seccomp profile
-            seccomp_path = Path(f"/etc/docker/seccomp/{container_name}.json")
-            if seccomp_path.exists():
-                seccomp_path.unlink()
-                
-            # Remove AppArmor profile
-            apparmor_path = Path(f"/etc/apparmor.d/containers/{container_name}")
-            if apparmor_path.exists():
-                apparmor_path.unlink()
-                
-            # Remove network namespace
-            namespace = f"netns_{container_name}"
-            os.system(f"ip netns del {namespace}")
-            
-            # Remove cgroup
-            cgroup_path = Path(f"/sys/fs/cgroup/memory/{container_name}")
-            if cgroup_path.exists():
-                os.system(f"rmdir {cgroup_path}")
-                
+            cmd = ["docker", "inspect", name]
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            return json.loads(result.stdout)[0]
         except Exception as e:
-            self.logger.error(f"Failed to clean up security configurations: {e}")
-            # Don't raise the exception as this is cleanup code
-            
-    def _load_config(self, filename: str) -> Dict[str, Any]:
-        """Load configuration from file"""
+            logger.error(f"Error getting container: {e}")
+            raise
+    
+    def update_container(self, name: str, proxy: str) -> None:
+        """Update container configuration"""
         try:
-            config_path = Path(filename)
-            if config_path.exists():
-                return eval(config_path.read_text())
-            return {}
+            # Stop container
+            self.stop_container(name)
+            
+            # Update environment variables
+            container = self.get_container(name)
+            env_vars = container["Config"]["Env"]
+            
+            # Update proxy settings
+            new_env_vars = []
+            for var in env_vars:
+                if not var.startswith(("HTTP_PROXY=", "HTTPS_PROXY=")):
+                    new_env_vars.append(var)
+            
+            new_env_vars.extend([
+                f"HTTP_PROXY={proxy}",
+                f"HTTPS_PROXY={proxy}",
+                "NO_PROXY=localhost,127.0.0.1"
+            ])
+            
+            # Update container
+            cmd = ["docker", "update"]
+            for var in new_env_vars:
+                cmd.extend(["-e", var])
+            cmd.append(name)
+            
+            subprocess.run(cmd, check=True)
+            
         except Exception as e:
-            self.logger.error(f"Error loading config {filename}: {e}")
-            return {}
-            
-    def _get_performance_env(self) -> Dict[str, str]:
-        """Get environment variables for performance optimization"""
-        return {
-            # Bypass EarnApp's bandwidth limits
-            "EARNAPP_BANDWIDTH_LIMIT": "0",
-            "EARNAPP_TRAFFIC_LIMIT": "0",
-            "EARNAPP_RATE_LIMIT": "0",
-            
-            # System resource settings
-            "GOMAXPROCS": "0",  # Use all available CPUs
-            "GOGC": "100",      # Aggressive garbage collection
-            
-            # Network optimizations
-            "TCP_NODELAY": "1",
-            "TCP_QUICKACK": "1",
-            
-            # Memory optimizations
-            "MALLOC_ARENA_MAX": "2",
-            "MALLOC_TRIM_THRESHOLD_": "131072",
-            
-            # Additional optimizations
-            "EARNAPP_AGGRESSIVE_MODE": "1",
-            "EARNAPP_OPTIMIZE_BANDWIDTH": "1"
-        } 
+            logger.error(f"Error updating container: {e}")
+            raise 

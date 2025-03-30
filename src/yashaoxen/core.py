@@ -1,6 +1,10 @@
+"""
+YashaoXen Core - Main implementation
+"""
+
 import os
-import sys
 import json
+import time
 import logging
 import docker
 import psutil
@@ -11,112 +15,198 @@ from typing import Dict, List, Optional
 from .container import ContainerManager
 from .proxy import ProxyManager
 from .security import SecurityManager
+from datetime import datetime, timedelta
 
 class YashCore:
-    def __init__(self, config_path: str = "/etc/yashaoxen/config.json"):
-        """Initialize YashCore with configuration."""
-        self.logger = self._setup_logging()
-        self.config_path = Path(config_path)
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+        self.docker_client = docker.from_env()
+        self.security = SecurityManager()
         self.config = self._load_config()
-        
-        try:
-            self.docker_client = docker.from_env()
-            self.container_manager = ContainerManager(self.docker_client, self.config)
-            self.proxy_manager = ProxyManager(self.config.get("proxy_config", {}))
-            self.security_manager = SecurityManager()
-        except Exception as e:
-            self.logger.error(f"Failed to initialize core components: {str(e)}")
-            raise
-
-    def _setup_logging(self) -> logging.Logger:
-        """Configure logging for YashCore."""
-        logger = logging.getLogger("yashaoxen")
-        logger.setLevel(logging.INFO)
-        
-        # Create logs directory if it doesn't exist
-        log_dir = Path("/var/log/yashaoxen")
-        log_dir.mkdir(parents=True, exist_ok=True)
-        
-        # File handler
-        fh = logging.FileHandler("/var/log/yashaoxen/core.log")
-        fh.setLevel(logging.INFO)
-        
-        # Console handler
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.INFO)
-        
-        # Formatter
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        fh.setFormatter(formatter)
-        ch.setFormatter(formatter)
-        
-        logger.addHandler(fh)
-        logger.addHandler(ch)
-        
-        return logger
+        self._load_proxies()
 
     def _load_config(self) -> Dict:
-        """Load configuration from file or create default."""
-        if not self.config_path.exists():
-            self.logger.info("Config not found, creating default configuration")
-            default_config = {
-                "container_config": {
-                    "image": "earnapp/earnapp:latest",
-                    "cpu_count": 2,
-                    "memory_limit": "2g",
-                    "network_mode": "bridge",
-                    "security_opt": ["apparmor=docker-default"],
-                    "cap_drop": ["ALL"],
-                    "cap_add": ["NET_ADMIN", "NET_RAW"]
-                },
-                "proxy_config": {
-                    "rotation_interval": 3600,
-                    "max_retries": 3,
-                    "retry_delay": 5
-                },
-                "security_config": {
-                    "enable_apparmor": True,
-                    "enable_seccomp": True,
-                    "enable_network_isolation": True,
-                    "enable_resource_limits": True
-                },
-                "monitoring_config": {
-                    "enable_prometheus": True,
-                    "metrics_port": 9090,
-                    "collect_interval": 60
-                }
-            }
-            
-            self.config_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.config_path, 'w') as f:
-                json.dump(default_config, f, indent=4)
-            
-            return default_config
-        
-        try:
-            with open(self.config_path) as f:
+        """Load configuration from file."""
+        config_file = "/etc/yashaoxen/config.json"
+        if os.path.exists(config_file):
+            with open(config_file, 'r') as f:
                 return json.load(f)
+        return {}
+
+    def _load_proxies(self) -> List[str]:
+        """Load proxies from file."""
+        self.proxies = []
+        proxy_file = "/etc/yashaoxen/proxies.txt"
+        if os.path.exists(proxy_file):
+            with open(proxy_file, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        self.proxies.append(line)
+        return self.proxies
+
+    def _create_earnapp_container(self, instance_id: str, proxy: Optional[str] = None) -> str:
+        """Create a new EarnApp container instance."""
+        try:
+            # Get EarnApp token from config
+            token = self.config.get("earnapp", {}).get("token")
+            if not token:
+                raise ValueError("EarnApp token not configured")
+
+            # Prepare container configuration
+            container_name = f"yashaoxen_earnapp_{instance_id}"
+            environment = {
+                "EARNAPP_UUID": token,
+                "PROXY_URL": proxy if proxy else ""
+            }
+
+            # Get resource limits from security manager
+            resources = self.security.get_resource_limits()
+
+            # Create and start container
+            container = self.docker_client.containers.run(
+                "earnapp/earnapp:latest",
+                name=container_name,
+                environment=environment,
+                detach=True,
+                restart_policy={"Name": "unless-stopped"},
+                mem_limit=resources["memory"],
+                cpu_period=100000,
+                cpu_quota=int(float(resources["cpu"]) * 100000),
+                security_opt=self.security.get_container_security_opts()
+            )
+
+            return container.id
         except Exception as e:
-            self.logger.error(f"Failed to load config: {str(e)}")
+            self.logger.error(f"Failed to create container: {str(e)}")
+            raise
+
+    def start_all(self) -> None:
+        """Start all EarnApp instances."""
+        try:
+            # Get number of instances from config
+            num_instances = self.config.get("earnapp", {}).get("instances", 1)
+            
+            # Load available proxies
+            if not self.proxies:
+                self.logger.warning("No proxies configured. Running without proxies.")
+            
+            # Create instances
+            for i in range(num_instances):
+                proxy = self.proxies[i % len(self.proxies)] if self.proxies else None
+                instance_id = f"instance_{i+1}"
+                
+                # Verify proxy if configured
+                if proxy and not self.security.verify_proxy(proxy):
+                    self.logger.warning(f"Proxy verification failed for {proxy}")
+                    continue
+                
+                # Create container
+                self._create_earnapp_container(instance_id, proxy)
+                self.logger.info(f"Started instance {instance_id}")
+            
+            self.logger.info("All instances started successfully")
+        except Exception as e:
+            self.logger.error(f"Failed to start instances: {str(e)}")
+            raise
+
+    def stop_all(self) -> None:
+        """Stop all EarnApp instances."""
+        try:
+            containers = self.docker_client.containers.list(
+                filters={"name": "yashaoxen_earnapp_"}
+            )
+            
+            for container in containers:
+                container.stop()
+                container.remove()
+            
+            self.logger.info("All instances stopped successfully")
+        except Exception as e:
+            self.logger.error(f"Failed to stop instances: {str(e)}")
+            raise
+
+    def list_instances(self) -> List[Dict]:
+        """List all running instances and their status."""
+        try:
+            instances = []
+            containers = self.docker_client.containers.list(
+                all=True,
+                filters={"name": "yashaoxen_earnapp_"}
+            )
+            
+            for container in containers:
+                # Get container info
+                info = container.attrs
+                status = container.status
+                name = container.name.replace("yashaoxen_earnapp_", "")
+                
+                # Calculate uptime
+                started_at = datetime.fromisoformat(info["State"]["StartedAt"].replace("Z", "+00:00"))
+                uptime = datetime.now(started_at.tzinfo) - started_at
+                
+                # Get proxy from environment
+                env = dict(e.split("=") for e in info["Config"]["Env"] if "=" in e)
+                proxy = env.get("PROXY_URL", "None")
+                
+                instances.append({
+                    "name": name,
+                    "status": status,
+                    "proxy": proxy,
+                    "uptime": str(uptime).split(".")[0]  # Remove microseconds
+                })
+            
+            return instances
+        except Exception as e:
+            self.logger.error(f"Failed to list instances: {str(e)}")
+            raise
+
+    def rotate_proxies(self) -> None:
+        """Rotate proxies for all instances."""
+        try:
+            if not self.proxies:
+                self.logger.warning("No proxies available for rotation")
+                return
+            
+            instances = self.list_instances()
+            for i, instance in enumerate(instances):
+                # Get next proxy
+                proxy = self.proxies[i % len(self.proxies)]
+                
+                # Verify proxy
+                if not self.security.verify_proxy(proxy):
+                    self.logger.warning(f"Proxy verification failed for {proxy}")
+                    continue
+                
+                # Stop old container
+                container = self.docker_client.containers.get(f"yashaoxen_earnapp_{instance['name']}")
+                container.stop()
+                container.remove()
+                
+                # Create new container with rotated proxy
+                self._create_earnapp_container(instance['name'], proxy)
+                self.logger.info(f"Rotated proxy for {instance['name']}")
+            
+            self.logger.info("Proxy rotation completed")
+        except Exception as e:
+            self.logger.error(f"Failed to rotate proxies: {str(e)}")
             raise
 
     def create_instance(self, proxy_url: str, memory: str = "1g") -> str:
         """Create a new EarnApp instance with specified proxy and memory."""
         try:
             # Validate proxy URL
-            if not self.proxy_manager.validate_proxy(proxy_url):
-                raise ValueError("Invalid proxy URL format")
+            if not self.proxies:
+                raise ValueError("No proxies available")
             
             # Check system resources
             if not self._check_system_resources(memory):
                 raise RuntimeError("Insufficient system resources")
             
             # Create container
-            container_id = self.container_manager.create_earnapp_container(
-                proxy_url=proxy_url,
-                memory_limit=memory
+            container_id = self._create_earnapp_container(
+                instance_id=proxy_url.replace(".", "_"),
+                proxy=proxy_url
             )
             
             self.logger.info(f"Created instance with ID: {container_id}")
@@ -162,7 +252,7 @@ class YashCore:
     def start_instance(self, instance_id: str) -> bool:
         """Start an EarnApp instance."""
         try:
-            return self.container_manager.start_container(instance_id)
+            return self._create_earnapp_container(instance_id)
         except Exception as e:
             self.logger.error(f"Failed to start instance {instance_id}: {str(e)}")
             return False
@@ -170,23 +260,27 @@ class YashCore:
     def stop_instance(self, instance_id: str) -> bool:
         """Stop an EarnApp instance."""
         try:
-            return self.container_manager.stop_container(instance_id)
+            container = self.docker_client.containers.get(f"yashaoxen_earnapp_{instance_id}")
+            container.stop()
+            container.remove()
+            self.logger.info(f"Stopped instance {instance_id}")
+            return True
         except Exception as e:
             self.logger.error(f"Failed to stop instance {instance_id}: {str(e)}")
             return False
 
-    def list_instances(self) -> List[Dict]:
-        """List all EarnApp instances and their status."""
-        try:
-            return self.container_manager.list_containers()
-        except Exception as e:
-            self.logger.error(f"Failed to list instances: {str(e)}")
-            return []
-
     def get_instance_stats(self, instance_id: str) -> Optional[Dict]:
         """Get statistics for a specific instance."""
         try:
-            return self.container_manager.get_container_stats(instance_id)
+            container = self.docker_client.containers.get(f"yashaoxen_earnapp_{instance_id}")
+            stats = container.stats(stream=False)
+            return {
+                "cpu_usage": stats["cpu_stats"]["cpu_usage"]["total_usage"],
+                "memory_usage": stats["memory_stats"]["usage"],
+                "memory_limit": stats["memory_stats"]["limit"],
+                "network_rx": stats["networks"]["eth0"]["rx_bytes"],
+                "network_tx": stats["networks"]["eth0"]["tx_bytes"]
+            }
         except Exception as e:
             self.logger.error(f"Failed to get stats for instance {instance_id}: {str(e)}")
             return None
@@ -194,13 +288,16 @@ class YashCore:
     def rotate_proxy(self, instance_id: str, new_proxy_url: str) -> bool:
         """Rotate proxy for an instance."""
         try:
-            if not self.proxy_manager.validate_proxy(new_proxy_url):
-                raise ValueError("Invalid proxy URL format")
-                
-            return self.container_manager.update_container_proxy(
-                instance_id, 
-                new_proxy_url
-            )
+            if not self.proxies:
+                raise ValueError("No proxies available for rotation")
+            
+            if not self.security.verify_proxy(new_proxy_url):
+                raise ValueError("Invalid proxy")
+            
+            self.stop_instance(instance_id)
+            self.start_instance(instance_id)
+            self.logger.info(f"Rotated proxy for {instance_id}")
+            return True
         except Exception as e:
             self.logger.error(f"Failed to rotate proxy for instance {instance_id}: {str(e)}")
             return False
@@ -208,8 +305,8 @@ class YashCore:
     def cleanup(self) -> None:
         """Clean up stopped instances and temporary files."""
         try:
-            self.container_manager.cleanup_containers()
-            self.proxy_manager.cleanup()
+            self.stop_all()
+            self.logger.info("All instances cleaned up")
         except Exception as e:
             self.logger.error(f"Failed to perform cleanup: {str(e)}")
 
@@ -228,7 +325,7 @@ class YashCore:
             status["docker_available"] = self._check_docker()
             
             # Check configuration
-            status["config_exists"] = self.config_path.exists()
+            status["config_exists"] = self._check_config()
             
             # Check logs
             log_path = Path("/var/log/yashaoxen")
@@ -251,6 +348,25 @@ class YashCore:
             self.docker_client.ping()
             return True
         except Exception:
+            return False
+
+    def _check_config(self) -> bool:
+        """Check if configuration is valid."""
+        try:
+            # Check if proxies are loaded
+            if not self.proxies:
+                self.logger.warning("No proxies configured")
+                return False
+            
+            # Check if all instances can be started
+            for proxy in self.proxies:
+                if not self._check_system_resources(proxy):
+                    self.logger.warning(f"Insufficient resources for proxy: {proxy}")
+                    return False
+            
+            return True
+        except Exception as e:
+            self.logger.error(f"Error checking configuration: {str(e)}")
             return False
 
     def _check_network_config(self) -> bool:

@@ -1,127 +1,144 @@
 #!/usr/bin/env python3
 
-import logging
+import os
 import json
-import uuid
-import subprocess
-import random
+import logging
+import docker
+from typing import Dict, Any, List
 from pathlib import Path
-from typing import Dict, Any, List, Optional
-from datetime import datetime
 from .container import ContainerManager
+from .network import NetworkManager
+from .proxy_handler import ProxyHandler
+from .anti_detect import AntiDetectionSystem
+from .earnapp import EarnAppManager
+
+logger = logging.getLogger(__name__)
 
 class InstanceManager:
     def __init__(self, config: Dict[str, Any]):
-        self.logger = logging.getLogger(__name__)
         self.config = config
-        self.container_manager = ContainerManager(config)
-        self.instances: Dict[str, Dict[str, Any]] = {}
-        self.instance_dir = Path("/var/lib/aethernode/instances")
-        self.instance_dir.mkdir(parents=True, exist_ok=True)
+        self.container_manager = ContainerManager()
+        self.network_manager = NetworkManager(config)
+        self.proxy_handler = ProxyHandler(config)
+        self.earnapp_manager = EarnAppManager(config)
+        self.anti_detect = AntiDetectionSystem(config)
         
-    def create_instance(self, proxy_config: Dict[str, Any]) -> str:
-        """Create a new EarnApp instance with dedicated proxy"""
+    def create_instance(self) -> str:
+        """Create a new EarnApp instance"""
         try:
-            # Generate instance ID
-            instance_id = str(uuid.uuid4())[:8]
+            # Generate unique instance ID
+            instance_id = f"yashaoxen_earnapp_{len(self.get_running_instances())}"
             
-            # Start container with security measures
-            container_id = self.container_manager.start_container(instance_id, proxy_config)
+            # Get proxy and DNS for this instance
+            proxy = self.proxy_handler.get_next_proxy()
+            dns = self.network_manager.get_next_dns()
             
-            # Store instance information
-            instance_info = {
-                'id': instance_id,
-                'container_id': container_id,
-                'proxy': proxy_config,
-                'status': 'running'
-            }
+            # Create container with network isolation
+            container = self.container_manager.create_container(
+                name=instance_id,
+                proxy=proxy,
+                dns=dns,
+                network_isolation=self.config.get("safeguards", {}).get("network_isolation", True)
+            )
             
-            self.instances[instance_id] = instance_info
-            self._save_instance(instance_id, instance_info)
+            # Configure anti-detection measures
+            if self.config.get("safeguards", {}).get("enabled", True):
+                self.anti_detect.apply_measures(container.id)
             
-            self.logger.info(f"Created instance {instance_id} with container {container_id}")
+            # Start EarnApp service
+            self.earnapp_manager.start_service(container.id)
+            
+            logger.info(f"Created instance {instance_id}")
             return instance_id
             
         except Exception as e:
-            self.logger.error(f"Failed to create instance: {e}")
+            logger.error(f"Error creating instance: {e}")
             raise
-            
+    
     def stop_instance(self, instance_id: str) -> None:
-        """Stop an instance and clean up resources"""
+        """Stop an EarnApp instance"""
         try:
-            if instance_id not in self.instances:
-                raise ValueError(f"Instance {instance_id} not found")
-                
-            instance = self.instances[instance_id]
-            
-            # Stop container
-            self.container_manager.stop_container(instance['container_id'])
-            
-            # Update instance status
-            instance['status'] = 'stopped'
-            self._save_instance(instance_id, instance)
-            
-            self.logger.info(f"Stopped instance {instance_id}")
-            
+            self.container_manager.stop_container(instance_id)
+            logger.info(f"Stopped instance {instance_id}")
         except Exception as e:
-            self.logger.error(f"Failed to stop instance: {e}")
+            logger.error(f"Error stopping instance {instance_id}: {e}")
             raise
-            
-    def restart_instance(self, instance_id: str) -> None:
-        """Restart a stopped instance"""
+    
+    def get_instance_status(self, instance_id: str) -> Dict[str, Any]:
+        """Get status of an instance"""
         try:
-            if instance_id not in self.instances:
-                raise ValueError(f"Instance {instance_id} not found")
-                
-            instance = self.instances[instance_id]
+            container = self.container_manager.get_container(instance_id)
+            stats = container.stats(stream=False)
             
-            # Stop existing container if running
-            if instance['status'] == 'running':
-                self.container_manager.stop_container(instance['container_id'])
-                
-            # Start new container with same proxy
-            container_id = self.container_manager.start_container(instance_id, instance['proxy'])
+            # Get instance configuration
+            instance_config = self.container_manager._get_instance_config(instance_id)
             
-            # Update instance information
-            instance['container_id'] = container_id
-            instance['status'] = 'running'
-            self._save_instance(instance_id, instance)
-            
-            self.logger.info(f"Restarted instance {instance_id}")
-            
+            return {
+                "status": container.status,
+                "uuid": instance_config["uuid"],
+                "proxy": instance_config["proxy"],
+                "dns": instance_config["dns"],
+                "cpu_usage": self._calculate_cpu_usage(stats),
+                "memory_usage": self._calculate_memory_usage(stats),
+                "network_usage": self._calculate_network_usage(stats)
+            }
         except Exception as e:
-            self.logger.error(f"Failed to restart instance: {e}")
+            logger.error(f"Error getting status for {instance_id}: {e}")
+            return {
+                "status": "error",
+                "uuid": None,
+                "proxy": None,
+                "dns": None,
+                "cpu_usage": 0,
+                "memory_usage": 0,
+                "network_usage": 0
+            }
+    
+    def rotate_proxy(self, instance_id: str) -> None:
+        """Rotate proxy for an instance"""
+        try:
+            new_proxy = self.proxy_handler.get_next_proxy()
+            self.container_manager.update_proxy(instance_id, new_proxy)
+            logger.info(f"Rotated proxy for instance {instance_id}")
+        except Exception as e:
+            logger.error(f"Error rotating proxy for {instance_id}: {e}")
             raise
-            
-    def get_instance(self, instance_id: str) -> Optional[Dict[str, Any]]:
-        """Get instance information"""
-        return self.instances.get(instance_id)
-        
-    def list_instances(self) -> List[Dict[str, Any]]:
-        """List all instances"""
-        return list(self.instances.values())
-        
-    def load_instances(self) -> None:
-        """Load instance information from disk"""
+    
+    def get_running_instances(self) -> List[str]:
+        """Get list of running instance IDs"""
+        return self.container_manager.list_containers()
+    
+    def _calculate_cpu_usage(self, stats: Dict[str, Any]) -> float:
+        """Calculate CPU usage percentage"""
         try:
-            for instance_file in self.instance_dir.glob('*.json'):
-                with open(instance_file, 'r') as f:
-                    instance = json.load(f)
-                    self.instances[instance['id']] = instance
-                    
-            self.logger.info(f"Loaded {len(self.instances)} instances")
+            cpu_delta = stats["cpu_stats"]["cpu_usage"]["total_usage"] - \
+                       stats["precpu_stats"]["cpu_usage"]["total_usage"]
+            system_delta = stats["cpu_stats"]["system_cpu_usage"] - \
+                         stats["precpu_stats"]["system_cpu_usage"]
             
-        except Exception as e:
-            self.logger.error(f"Failed to load instances: {e}")
-            raise
-            
-    def _save_instance(self, instance_id: str, instance: Dict[str, Any]) -> None:
-        """Save instance information to disk"""
+            if system_delta > 0.0 and cpu_delta > 0.0:
+                return (cpu_delta / system_delta) * 100.0
+            return 0.0
+        except Exception:
+            return 0.0
+    
+    def _calculate_memory_usage(self, stats: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate memory usage"""
         try:
-            instance_file = self.instance_dir / f"{instance_id}.json"
-            with open(instance_file, 'w') as f:
-                json.dump(instance, f, indent=2)
-                
-        except Exception as e:
-            self.logger.error(f"Failed to save instance {instance_id}: {e}")
-            raise 
+            return {
+                "used": stats["memory_stats"]["usage"],
+                "limit": stats["memory_stats"]["limit"],
+                "percentage": (stats["memory_stats"]["usage"] / stats["memory_stats"]["limit"]) * 100
+            }
+        except Exception:
+            return {"used": 0, "limit": 0, "percentage": 0}
+    
+    def _calculate_network_usage(self, stats: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate network usage"""
+        try:
+            return {
+                "rx_bytes": stats["networks"]["eth0"]["rx_bytes"],
+                "tx_bytes": stats["networks"]["eth0"]["tx_bytes"]
+            }
+        except Exception:
+            return {"rx_bytes": 0, "tx_bytes": 0} 

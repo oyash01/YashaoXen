@@ -1,0 +1,491 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import json
+import click
+import docker
+import logging
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich.progress import Progress
+from datetime import datetime
+
+# Initialize rich console
+console = Console()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('/var/log/yashaoxen/yashaoxen.log'),
+        logging.StreamHandler()
+    ]
+)
+
+class YashaoXen:
+    def __init__(self):
+        self.client = docker.from_env()
+        self.config_dir = '/etc/yashaoxen/config'
+        self.load_config()
+
+    def load_config(self):
+        """Load configuration from files"""
+        try:
+            with open(os.path.join(self.config_dir, 'features.json'), 'r') as f:
+                self.features = json.load(f)
+            with open(os.path.join(self.config_dir, 'safeguards.json'), 'r') as f:
+                self.safeguards = json.load(f)
+        except FileNotFoundError:
+            console.print("[red]Configuration files not found. Please run the installer first.[/red]")
+            sys.exit(1)
+
+    def show_menu(self):
+        """Display the main menu"""
+        console.print(Panel.fit(
+            "[bold blue]YashaoXen Manager[/bold blue]\n"
+            "Advanced EarnApp Management System",
+            title="Menu"
+        ))
+        
+        table = Table(show_header=False, box=None)
+        table.add_row("1", "Manage Instances")
+        table.add_row("2", "Configure Proxies")
+        table.add_row("3", "Configure DNS")
+        table.add_row("4", "Configure Safeguards")
+        table.add_row("5", "Manage Features")
+        table.add_row("6", "Update YashaoXen")
+        table.add_row("7", "Backup Configuration")
+        table.add_row("8", "View Logs")
+        table.add_row("9", "Show Status")
+        table.add_row("10", "Performance Stats")
+        table.add_row("0", "Exit")
+        
+        console.print(table)
+        return input("\nSelect an option (0-10): ")
+
+    def manage_instances(self):
+        """Manage EarnApp instances"""
+        console.print(Panel.fit(
+            "[bold blue]Instance Management[/bold blue]",
+            title="Instances"
+        ))
+        
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Name")
+        table.add_column("Status")
+        table.add_column("UUID")
+        table.add_column("Device Name")
+        
+        containers = self.client.containers.list(all=True)
+        for container in containers:
+            if container.name.startswith('earnapp'):
+                table.add_row(
+                    container.name,
+                    container.status,
+                    container.labels.get('earnapp.uuid', 'N/A'),
+                    container.labels.get('earnapp.device_name', 'N/A')
+                )
+        
+        console.print(table)
+        
+        action = input("\nAction (start/stop/restart/remove): ").lower()
+        if action in ['start', 'stop', 'restart', 'remove']:
+            name = input("Enter instance name: ")
+            try:
+                container = self.client.containers.get(name)
+                if action == 'start':
+                    container.start()
+                elif action == 'stop':
+                    container.stop()
+                elif action == 'restart':
+                    container.restart()
+                elif action == 'remove':
+                    container.remove(force=True)
+                console.print(f"[green]Successfully {action}ed {name}[/green]")
+            except docker.errors.NotFound:
+                console.print(f"[red]Instance {name} not found[/red]")
+
+    def configure_proxies(self):
+        """Configure proxy settings"""
+        console.print(Panel.fit(
+            "[bold blue]Proxy Configuration[/bold blue]",
+            title="Proxies"
+        ))
+        
+        proxy_file = os.path.join(self.config_dir, 'proxies.txt')
+        if os.path.exists(proxy_file):
+            with open(proxy_file, 'r') as f:
+                proxies = f.read()
+                console.print(f"Current proxies:\n{proxies}")
+        
+        action = input("\nAction (add/remove/list): ").lower()
+        if action == 'add':
+            proxy = input("Enter proxy (ip:port:username:password): ")
+            with open(proxy_file, 'a') as f:
+                f.write(f"{proxy}\n")
+            console.print("[green]Proxy added successfully[/green]")
+        elif action == 'remove':
+            proxy = input("Enter proxy to remove: ")
+            with open(proxy_file, 'r') as f:
+                lines = f.readlines()
+            with open(proxy_file, 'w') as f:
+                for line in lines:
+                    if line.strip() != proxy:
+                        f.write(line)
+            console.print("[green]Proxy removed successfully[/green]")
+        elif action == 'list':
+            if os.path.exists(proxy_file):
+                with open(proxy_file, 'r') as f:
+                    console.print(f.read())
+            else:
+                console.print("[yellow]No proxies configured[/yellow]")
+
+    def configure_dns(self):
+        """Configure DNS settings"""
+        console.print(Panel.fit(
+            "[bold blue]DNS Configuration[/bold blue]",
+            title="DNS"
+        ))
+        
+        dns_file = os.path.join(self.config_dir, 'dns.txt')
+        if os.path.exists(dns_file):
+            with open(dns_file, 'r') as f:
+                dns = f.read()
+                console.print(f"Current DNS servers:\n{dns}")
+        
+        action = input("\nAction (add/remove/list): ").lower()
+        if action == 'add':
+            dns = input("Enter DNS server: ")
+            with open(dns_file, 'a') as f:
+                f.write(f"{dns}\n")
+            console.print("[green]DNS server added successfully[/green]")
+        elif action == 'remove':
+            dns = input("Enter DNS server to remove: ")
+            with open(dns_file, 'r') as f:
+                lines = f.readlines()
+            with open(dns_file, 'w') as f:
+                for line in lines:
+                    if line.strip() != dns:
+                        f.write(line)
+            console.print("[green]DNS server removed successfully[/green]")
+        elif action == 'list':
+            if os.path.exists(dns_file):
+                with open(dns_file, 'r') as f:
+                    console.print(f.read())
+            else:
+                console.print("[yellow]No DNS servers configured[/yellow]")
+
+    def configure_safeguards(self):
+        """Configure security safeguards"""
+        console.print(Panel.fit(
+            "[bold blue]Security Safeguards[/bold blue]",
+            title="Safeguards"
+        ))
+        
+        with open(os.path.join(self.config_dir, 'safeguards.json'), 'r') as f:
+            safeguards = json.load(f)
+        
+        console.print(json.dumps(safeguards, indent=2))
+        
+        action = input("\nAction (edit/reset): ").lower()
+        if action == 'edit':
+            key = input("Enter setting to edit: ")
+            value = input("Enter new value: ")
+            try:
+                value = json.loads(value)
+                safeguards[key] = value
+                with open(os.path.join(self.config_dir, 'safeguards.json'), 'w') as f:
+                    json.dump(safeguards, f, indent=2)
+                console.print("[green]Setting updated successfully[/green]")
+            except json.JSONDecodeError:
+                console.print("[red]Invalid value format[/red]")
+        elif action == 'reset':
+            default_safeguards = {
+                "max_instances": 10,
+                "memory_limit": "512m",
+                "cpu_limit": "0.5",
+                "network_isolation": True,
+                "proxy_verification": True,
+                "device_verification": True,
+                "auto_update": True,
+                "allowed_countries": ["US", "CA", "GB", "DE", "FR", "IT", "ES", "NL", "SE", "AU"],
+                "blocked_ips": [],
+                "security_checks": {
+                    "verify_proxy_ssl": True,
+                    "verify_proxy_anonymity": True,
+                    "check_proxy_location": True,
+                    "monitor_traffic": True
+                }
+            }
+            with open(os.path.join(self.config_dir, 'safeguards.json'), 'w') as f:
+                json.dump(default_safeguards, f, indent=2)
+            console.print("[green]Safeguards reset to defaults[/green]")
+
+    def manage_features(self):
+        """Manage feature toggles"""
+        console.print(Panel.fit(
+            "[bold blue]Feature Management[/bold blue]",
+            title="Features"
+        ))
+        
+        with open(os.path.join(self.config_dir, 'features.json'), 'r') as f:
+            features = json.load(f)
+        
+        console.print(json.dumps(features, indent=2))
+        
+        action = input("\nAction (enable/disable/reset): ").lower()
+        if action in ['enable', 'disable']:
+            feature = input("Enter feature name: ")
+            if feature in features:
+                features[feature]['enabled'] = (action == 'enable')
+                with open(os.path.join(self.config_dir, 'features.json'), 'w') as f:
+                    json.dump(features, f, indent=2)
+                console.print(f"[green]Feature {feature} {action}d successfully[/green]")
+            else:
+                console.print("[red]Feature not found[/red]")
+        elif action == 'reset':
+            default_features = {
+                "proxy_rotation": {
+                    "enabled": True,
+                    "interval": 3600
+                },
+                "monitoring": {
+                    "enabled": True,
+                    "interval": 300
+                },
+                "auto_update": {
+                    "enabled": True,
+                    "check_interval": 86400
+                },
+                "logging": {
+                    "level": "INFO",
+                    "max_size": "10M",
+                    "backup_count": 5
+                }
+            }
+            with open(os.path.join(self.config_dir, 'features.json'), 'w') as f:
+                json.dump(default_features, f, indent=2)
+            console.print("[green]Features reset to defaults[/green]")
+
+    def update_yashaoxen(self):
+        """Update YashaoXen to latest version"""
+        console.print(Panel.fit(
+            "[bold blue]YashaoXen Update[/bold blue]",
+            title="Update"
+        ))
+        
+        with Progress() as progress:
+            task = progress.add_task("[cyan]Updating...", total=100)
+            
+            # Download latest version
+            progress.update(task, advance=30)
+            os.system('git pull origin main')
+            
+            # Update dependencies
+            progress.update(task, advance=30)
+            os.system('pip3 install -r requirements.txt')
+            
+            # Restart service
+            progress.update(task, advance=40)
+            os.system('systemctl restart yashaoxen')
+        
+        console.print("[green]Update completed successfully[/green]")
+
+    def backup_config(self):
+        """Backup configuration files"""
+        console.print(Panel.fit(
+            "[bold blue]Configuration Backup[/bold blue]",
+            title="Backup"
+        ))
+        
+        backup_dir = '/etc/yashaoxen/backup'
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_file = f"{backup_dir}/config_{timestamp}.tar.gz"
+        
+        with Progress() as progress:
+            task = progress.add_task("[cyan]Creating backup...", total=100)
+            
+            # Create backup
+            progress.update(task, advance=50)
+            os.system(f'tar -czf {backup_file} {self.config_dir}')
+            
+            # Verify backup
+            progress.update(task, advance=50)
+            if os.path.exists(backup_file):
+                console.print(f"[green]Backup created successfully: {backup_file}[/green]")
+            else:
+                console.print("[red]Backup failed[/red]")
+
+    def view_logs(self):
+        """View YashaoXen logs"""
+        console.print(Panel.fit(
+            "[bold blue]YashaoXen Logs[/bold blue]",
+            title="Logs"
+        ))
+        
+        log_file = '/var/log/yashaoxen/yashaoxen.log'
+        if os.path.exists(log_file):
+            with open(log_file, 'r') as f:
+                console.print(f.read())
+        else:
+            console.print("[yellow]No logs found[/yellow]")
+
+    def show_status(self):
+        """Show system status"""
+        console.print(Panel.fit(
+            "[bold blue]System Status[/bold blue]",
+            title="Status"
+        ))
+        
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Metric")
+        table.add_column("Value")
+        
+        # Docker status
+        try:
+            docker_info = self.client.info()
+            table.add_row("Docker Version", docker_info['ServerVersion'])
+            table.add_row("Running Containers", str(docker_info['ContainersRunning']))
+            table.add_row("Total Containers", str(docker_info['Containers']))
+        except:
+            table.add_row("Docker Status", "Not Available")
+        
+        # System resources
+        import psutil
+        table.add_row("CPU Usage", f"{psutil.cpu_percent()}%")
+        table.add_row("Memory Usage", f"{psutil.virtual_memory().percent}%")
+        table.add_row("Disk Usage", f"{psutil.disk_usage('/').percent}%")
+        
+        console.print(table)
+
+    def show_performance(self):
+        """Show performance statistics"""
+        console.print(Panel.fit(
+            "[bold blue]Performance Statistics[/bold blue]",
+            title="Performance"
+        ))
+        
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Instance")
+        table.add_column("CPU Usage")
+        table.add_column("Memory Usage")
+        table.add_column("Network I/O")
+        
+        containers = self.client.containers.list()
+        for container in containers:
+            if container.name.startswith('earnapp'):
+                stats = container.stats(stream=False)
+                cpu_delta = stats['cpu_stats']['cpu_usage']['total_usage'] - \
+                           stats['precpu_stats']['cpu_usage']['total_usage']
+                system_delta = stats['cpu_stats']['system_cpu_usage'] - \
+                             stats['precpu_stats']['system_cpu_usage']
+                cpu_usage = (cpu_delta / system_delta) * 100.0
+                
+                memory_usage = (stats['memory_stats']['usage'] / \
+                              stats['memory_stats']['limit']) * 100.0
+                
+                network_rx = stats['networks']['eth0']['rx_bytes']
+                network_tx = stats['networks']['eth0']['tx_bytes']
+                
+                table.add_row(
+                    container.name,
+                    f"{cpu_usage:.1f}%",
+                    f"{memory_usage:.1f}%",
+                    f"↓{network_rx/1024/1024:.1f}MB ↑{network_tx/1024/1024:.1f}MB"
+                )
+        
+        console.print(table)
+
+@click.group()
+def cli():
+    """YashaoXen - Advanced EarnApp Manager"""
+    pass
+
+@cli.command()
+def menu():
+    """Start interactive menu"""
+    yashaoxen = YashaoXen()
+    while True:
+        choice = yashaoxen.show_menu()
+        if choice == '1':
+            yashaoxen.manage_instances()
+        elif choice == '2':
+            yashaoxen.configure_proxies()
+        elif choice == '3':
+            yashaoxen.configure_dns()
+        elif choice == '4':
+            yashaoxen.configure_safeguards()
+        elif choice == '5':
+            yashaoxen.manage_features()
+        elif choice == '6':
+            yashaoxen.update_yashaoxen()
+        elif choice == '7':
+            yashaoxen.backup_config()
+        elif choice == '8':
+            yashaoxen.view_logs()
+        elif choice == '9':
+            yashaoxen.show_status()
+        elif choice == '10':
+            yashaoxen.show_performance()
+        elif choice == '0':
+            break
+        input("\nPress Enter to continue...")
+
+@cli.command()
+def start():
+    """Start all instances"""
+    yashaoxen = YashaoXen()
+    containers = yashaoxen.client.containers.list(all=True)
+    for container in containers:
+        if container.name.startswith('earnapp'):
+            container.start()
+    console.print("[green]All instances started[/green]")
+
+@cli.command()
+def stop():
+    """Stop all instances"""
+    yashaoxen = YashaoXen()
+    containers = yashaoxen.client.containers.list()
+    for container in containers:
+        if container.name.startswith('earnapp'):
+            container.stop()
+    console.print("[green]All instances stopped[/green]")
+
+@cli.command()
+def status():
+    """Show instance status"""
+    yashaoxen = YashaoXen()
+    yashaoxen.show_status()
+
+@cli.command()
+def logs():
+    """View logs"""
+    yashaoxen = YashaoXen()
+    yashaoxen.view_logs()
+
+@cli.command()
+def update():
+    """Update YashaoXen"""
+    yashaoxen = YashaoXen()
+    yashaoxen.update_yashaoxen()
+
+@cli.command()
+def remove():
+    """Remove YashaoXen"""
+    if click.confirm('Are you sure you want to remove YashaoXen?'):
+        yashaoxen = YashaoXen()
+        containers = yashaoxen.client.containers.list(all=True)
+        for container in containers:
+            if container.name.startswith('earnapp'):
+                container.remove(force=True)
+        os.system('rm -rf /etc/yashaoxen')
+        os.system('rm -f /usr/local/bin/yashaoxen')
+        console.print("[green]YashaoXen removed successfully[/green]")
+
+if __name__ == '__main__':
+    cli() 
