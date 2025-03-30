@@ -217,6 +217,112 @@ EOF
     print_success "Directories and files setup complete"
 }
 
+# Function to setup library files
+setup_library_files() {
+    print_header "Setting up Library Files"
+    
+    # Create lib directory if it doesn't exist
+    mkdir -p /usr/local/lib/yashaoxen
+    
+    # Copy colors.sh first as it's a dependency
+    if [ -f "scripts/lib/colors.sh" ]; then
+        cp scripts/lib/colors.sh /usr/local/lib/yashaoxen/
+        chmod +x /usr/local/lib/yashaoxen/colors.sh
+    else
+        # Create colors.sh if it doesn't exist
+        cat > /usr/local/lib/yashaoxen/colors.sh << 'EOF'
+#!/bin/bash
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+NC='\033[0m'
+
+# Print functions
+print_success() { echo -e "${GREEN}✓ $1${NC}"; }
+print_error() { echo -e "${RED}× $1${NC}"; }
+print_info() { echo -e "${YELLOW}➜ $1${NC}"; }
+print_header() { echo -e "${PURPLE}=== $1 ===${NC}"; }
+EOF
+        chmod +x /usr/local/lib/yashaoxen/colors.sh
+    fi
+    
+    # Create safeguards.sh
+    cat > /usr/local/lib/yashaoxen/safeguards.sh << 'EOF'
+#!/bin/bash
+
+source /usr/local/lib/yashaoxen/colors.sh
+
+init_safeguards() {
+    if [ ! -f "/etc/yashaoxen/safeguards.json" ]; then
+        print_info "Creating default safeguards configuration..."
+        mkdir -p /etc/yashaoxen
+        cat > /etc/yashaoxen/safeguards.json << 'INNEREOF'
+{
+    "max_instances": 10,
+    "memory_limit": "512m",
+    "cpu_limit": "0.5",
+    "network_isolation": true,
+    "proxy_verification": true,
+    "device_verification": true,
+    "auto_update": true,
+    "allowed_countries": ["US", "CA", "GB", "DE", "FR", "IT", "ES", "NL", "SE", "AU"],
+    "blocked_ips": [],
+    "security_checks": {
+        "verify_proxy_ssl": true,
+        "verify_proxy_anonymity": true,
+        "check_proxy_location": true,
+        "monitor_traffic": true
+    }
+}
+INNEREOF
+    fi
+}
+EOF
+    chmod +x /usr/local/lib/yashaoxen/safeguards.sh
+    
+    # Create features.sh
+    cat > /usr/local/lib/yashaoxen/features.sh << 'EOF'
+#!/bin/bash
+
+source /usr/local/lib/yashaoxen/colors.sh
+
+init_features() {
+    if [ ! -f "/etc/yashaoxen/features.json" ]; then
+        print_info "Creating default features configuration..."
+        mkdir -p /etc/yashaoxen
+        cat > /etc/yashaoxen/features.json << 'INNEREOF'
+{
+    "proxy_rotation": {
+        "enabled": true,
+        "interval": 3600
+    },
+    "monitoring": {
+        "enabled": true,
+        "interval": 300
+    },
+    "auto_update": {
+        "enabled": true,
+        "check_interval": 86400
+    },
+    "logging": {
+        "level": "INFO",
+        "max_size": "10M",
+        "backup_count": 5
+    }
+}
+INNEREOF
+    fi
+}
+EOF
+    chmod +x /usr/local/lib/yashaoxen/features.sh
+    
+    print_success "Library files setup complete"
+}
+
 # Function to initialize configurations
 init_configurations() {
     print_header "Initializing Configurations"
@@ -305,6 +411,7 @@ main_install() {
     install_dependencies || exit 1
     setup_python_env || exit 1
     setup_directories || exit 1
+    setup_library_files || exit 1
     init_configurations || exit 1
     
     # Verify installation
