@@ -128,17 +128,10 @@ prometheus-client==0.19.0
 EOF
     fi
 
-    # Create a backup of requirements.txt
-    cp requirements.txt requirements.txt.bak
-    
-    # Update requirements.txt with compatible versions
-    sed -i 's/python-iptables==2.0.0/python-iptables==1.0.1/' requirements.txt
-    
     # Install requirements with error handling
     if ! pip install -r requirements.txt; then
-        print_error "Failed to install requirements. Trying alternative versions..."
-        # Restore backup and try with more flexible versions
-        cp requirements.txt.bak requirements.txt
+        print_error "Failed to install requirements"
+        print_info "Trying with more flexible versions..."
         sed -i 's/==/>=/g' requirements.txt
         if ! pip install -r requirements.txt; then
             print_error "Failed to install Python requirements"
@@ -146,26 +139,32 @@ EOF
         fi
     fi
     
-    # Install the package in development mode
+    # Install the package
     if [ -f "setup.py" ]; then
         print_info "Installing YashaoXen package..."
-        # Copy source files to /opt/yashaoxen/src
-        mkdir -p /opt/yashaoxen/src
-        cp -r src/* /opt/yashaoxen/src/
         
-        # Install the package
-        cd /opt/yashaoxen && pip install -e .
-        if [ $? -ne 0 ]; then
+        # Create package directory structure
+        mkdir -p /opt/yashaoxen/src
+        mkdir -p /opt/yashaoxen/yashaoxen
+        
+        # Copy package files
+        cp -r src/* /opt/yashaoxen/src/
+        cp setup.py /opt/yashaoxen/
+        cp README.md /opt/yashaoxen/
+        
+        # Install the package in development mode
+        cd /opt/yashaoxen
+        if ! pip install -e .; then
             print_error "Failed to install YashaoXen package"
             exit 1
         fi
+        cd - > /dev/null  # Return to previous directory
+        
+        print_success "YashaoXen package installed successfully"
     else
         print_error "setup.py not found. Cannot install YashaoXen package."
         exit 1
     fi
-    
-    # Cleanup
-    rm -f requirements.txt.bak
     
     print_success "Python environment setup complete"
 }
@@ -177,13 +176,21 @@ setup_directories() {
     # Create necessary directories
     mkdir -p /etc/yashaoxen
     mkdir -p /usr/local/lib/yashaoxen
-    mkdir -p /opt/yashaoxen
+    mkdir -p /opt/yashaoxen/{src,logs,config}
     mkdir -p /var/log/yashaoxen
     
+    # Copy source files
+    if [ -d "src" ]; then
+        cp -r src/* /opt/yashaoxen/src/
+    else
+        print_error "Source directory not found"
+        exit 1
+    fi
+    
     # Copy configuration files
-    cp -r scripts/lib/* /usr/local/lib/yashaoxen/
-    cp scripts/yashaoxen-manager /usr/local/bin/
-    chmod +x /usr/local/bin/yashaoxen-manager
+    if [ -d "scripts/lib" ]; then
+        cp -r scripts/lib/* /usr/local/lib/yashaoxen/
+    fi
     
     # Create activation script
     cat > /usr/local/bin/yashaoxen << EOF
@@ -193,16 +200,16 @@ if [ "\$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Activate virtual environment and set Python path
+# Activate virtual environment
 source /opt/yashaoxen/venv/bin/activate || {
     echo -e "${RED}Error: Failed to activate virtual environment${NC}"
     exit 1
 }
 
-# Set Python path to include the package
+# Set Python path
 export PYTHONPATH=/opt/yashaoxen/src:\$PYTHONPATH
 
-# Run manager with arguments
+# Run manager
 yashaoxen-manager "\$@"
 EOF
     chmod +x /usr/local/bin/yashaoxen
@@ -252,15 +259,22 @@ verify_installation() {
         return 1
     fi
     
+    # Check package installation
+    if ! [ -f "/opt/yashaoxen/setup.py" ]; then
+        print_error "Package installation verification failed"
+        return 1
+    fi
+    
     # Check yashaoxen command
     if ! [ -x "/usr/local/bin/yashaoxen" ]; then
         print_error "YashaoXen command verification failed"
         return 1
     fi
     
-    # Check configurations
-    if ! [ -f "/etc/yashaoxen/safeguards.json" ] || ! [ -f "/etc/yashaoxen/features.json" ]; then
-        print_error "Configuration verification failed"
+    # Verify package is importable
+    source /opt/yashaoxen/venv/bin/activate
+    if ! python3 -c "import yashaoxen" 2>/dev/null; then
+        print_error "Package import verification failed"
         return 1
     fi
     

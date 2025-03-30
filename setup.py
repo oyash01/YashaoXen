@@ -22,6 +22,10 @@ setup(
             'yashaoxen-manager=yashaoxen.cli:main',
         ],
     },
+    include_package_data=True,
+    package_data={
+        'yashaoxen': ['config/*.json', 'scripts/*'],
+    },
     author="oyash01",
     description="Professional EarnApp Management System with Advanced Proxy Support",
     long_description=open("README.md").read(),
