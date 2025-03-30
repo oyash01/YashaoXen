@@ -2,62 +2,120 @@
 
 A powerful and user-friendly EarnApp management system with advanced features and security safeguards.
 
-## Features
+## 📑 Table of Contents
 
-- Multi-instance management
-- Advanced proxy support with rotation
-- DNS configuration
-- Security safeguards
-- Performance monitoring
-- Automatic updates
-- Configuration backup
-- Detailed logging
-- Interactive CLI interface
+- [Features](#features)
+- [Quick Start](#quick-start)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+- [Usage Guide](#usage-guide)
+  - [Interactive Menu](#interactive-menu)
+  - [Command Line Interface](#command-line-interface)
+- [Configuration](#configuration)
+  - [Directory Structure](#directory-structure)
+  - [Proxy Configuration](#proxy-configuration)
+  - [DNS Configuration](#dns-configuration)
+  - [Security Safeguards](#security-safeguards)
+  - [Features](#features)
+- [Monitoring](#monitoring)
+  - [System Status](#system-status)
+  - [Performance Stats](#performance-stats)
+- [Logging](#logging)
+- [Security](#security)
+  - [Safeguards](#safeguards)
+  - [Proxy Security](#proxy-security)
+- [Updates](#updates)
+  - [Automatic Updates](#automatic-updates)
+  - [Manual Updates](#manual-updates)
+- [Backup](#backup)
+- [Troubleshooting](#troubleshooting)
+  - [Common Issues](#common-issues)
+- [Credits](#credits)
 
-## Quick Start
+## 🌟 Features
 
-### One-Line Installation
+### 🛡️ Core Security
+- **Device ID Protection**: Secure device identity management
+- **Network Isolation**: Containerized instances with network separation
+- **Firewall Integration**: Built-in firewall rules for enhanced security
+- **Proxy Validation**: Automatic proxy testing and validation
 
+### 🔄 Proxy Management
+- **Auto Rotation**: Smart proxy rotation with configurable intervals
+- **Health Checks**: Continuous proxy monitoring and health verification
+- **Fail Protection**: Automatic failover for unreliable proxies
+- **Custom Rules**: Flexible proxy configuration and routing
+
+### ⚡ Performance
+- **Resource Optimization**: Smart resource allocation per instance
+- **Auto-scaling**: Dynamic instance management based on performance
+- **Load Balancing**: Distribute load across multiple instances
+- **Performance Monitoring**: Real-time stats and metrics
+
+### 🛠️ Management Features
+- **Interactive CLI**: User-friendly command-line interface
+- **Configuration System**: JSON-based configuration management
+- **Logging System**: Comprehensive logging with different levels
+- **Backup System**: Automated configuration backups
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Linux system (Ubuntu 20.04+ recommended)
+- Docker installed
+- jq package installed
+- Root access
+- Python 3.8 or higher (automatically installed)
+
+### Installation
+
+#### One-Command Installation (Recommended)
 ```bash
 curl -sSL https://raw.githubusercontent.com/oyash01/YashaoXen/main/install.sh | sudo bash
 ```
 
-### Manual Installation
-
-1. Clone the repository:
+#### Manual Installation
 ```bash
+# Clone repository
 git clone https://github.com/oyash01/YashaoXen.git
-cd YashaoXen
-```
 
-2. Run the installer:
-```bash
+# Enter directory
+cd YashaoXen
+
+# Run installer
 sudo ./install.sh
 ```
 
-## Usage
+## 🎮 Usage Guide
 
 ### Interactive Menu
-
 ```bash
 sudo yashaoxen menu
 ```
 
 This will show the main menu with the following options:
 
-1. Manage Instances
-2. Configure Proxies
-3. Configure DNS
-4. Configure Safeguards
-5. Manage Features
-6. Update YashaoXen
-7. Backup Configuration
-8. View Logs
-9. Show Status
-10. Performance Stats
+```
+=== System Management ===
+1) Manage Instances
+2) Configure Proxies
+3) Configure DNS
+
+=== Security & Features ===
+4) Configure Safeguards
+5) Manage Features
+
+=== Maintenance ===
+6) Update YashaoXen
+7) Backup Configuration
+8) View Logs
+
+=== Monitoring ===
+9) Show Status
+10) Performance Stats
+```
 
 ### Command Line Interface
-
 ```bash
 # Start all instances
 sudo yashaoxen start
@@ -78,10 +136,9 @@ sudo yashaoxen update
 sudo yashaoxen remove
 ```
 
-## Configuration
+## 📋 Configuration
 
 ### Directory Structure
-
 ```
 /etc/yashaoxen/
 ├── config/
@@ -93,7 +150,6 @@ sudo yashaoxen remove
 ```
 
 ### Proxy Configuration
-
 Format: `ip:port:username:password`
 ```
 1.2.3.4:8080:user:pass
@@ -101,7 +157,6 @@ Format: `ip:port:username:password`
 ```
 
 ### DNS Configuration
-
 One DNS server per line:
 ```
 8.8.8.8
@@ -109,7 +164,6 @@ One DNS server per line:
 ```
 
 ### Security Safeguards
-
 Default configuration:
 ```json
 {
@@ -132,7 +186,6 @@ Default configuration:
 ```
 
 ### Features
-
 Default configuration:
 ```json
 {
@@ -156,10 +209,9 @@ Default configuration:
 }
 ```
 
-## Monitoring
+## 📊 Monitoring
 
 ### System Status
-
 The status command shows:
 - Docker version and container count
 - CPU usage
@@ -167,24 +219,21 @@ The status command shows:
 - Disk usage
 
 ### Performance Stats
-
 The performance command shows:
 - Instance name
 - CPU usage
 - Memory usage
 - Network I/O
 
-## Logging
-
+## 📝 Logging
 Logs are stored in `/var/log/yashaoxen/`:
 - `yashaoxen.log`: Main application log
 - `install.log`: Installation log
 - `update.log`: Update log
 
-## Security
+## 🔒 Security
 
 ### Safeguards
-
 - Instance limits
 - Resource constraints
 - Network isolation
@@ -196,24 +245,21 @@ Logs are stored in `/var/log/yashaoxen/`:
 - Traffic monitoring
 
 ### Proxy Security
-
 - SSL verification
 - Anonymity checks
 - Location verification
 - Automatic rotation
 - Health checks
 
-## Updates
+## 🔄 Updates
 
 ### Automatic Updates
-
 The system can automatically update:
 - YashaoXen itself
 - EarnApp containers
 - Dependencies
 
 ### Manual Updates
-
 ```bash
 # Update everything
 sudo yashaoxen update
@@ -222,10 +268,9 @@ sudo yashaoxen update
 sudo yashaoxen update --component [yashaoxen|earnapp]
 ```
 
-## Backup
+## 💾 Backup
 
 ### Configuration Backup
-
 ```bash
 # Create backup
 sudo yashaoxen backup
@@ -236,7 +281,7 @@ sudo yashaoxen restore [backup_file]
 
 Backups are stored in `/etc/yashaoxen/backup/` with timestamps.
 
-## Troubleshooting
+## 🔧 Troubleshooting
 
 ### Common Issues
 
@@ -255,7 +300,7 @@ Backups are stored in `/etc/yashaoxen/backup/` with timestamps.
    - Check system load
    - Verify network settings
 
-## Credits
+## 🤝 Credits
 
 - Based on money4band's EarnApp implementation
 - Maintained by MRColorR
