@@ -99,35 +99,47 @@ install_system_deps() {
 setup_venv() {
     log "Setting up Python virtual environment..."
     
+    # Remove existing venv if it exists
+    if [ -d "$VENV_DIR" ]; then
+        log "Removing existing virtual environment..."
+        rm -rf "$VENV_DIR"
+    fi
+    
     # Create virtual environment directory with proper permissions
     mkdir -p "$VENV_DIR" || error "Failed to create virtual environment directory"
     chown -R root:root "$VENV_DIR"
     chmod -R 755 "$VENV_DIR"
     
-    # Remove existing venv if corrupted
-    if [ -d "$VENV_DIR" ] && [ ! -f "$VENV_DIR/bin/activate" ]; then
-        log "Removing corrupted virtual environment..."
-        rm -rf "$VENV_DIR"
-        mkdir -p "$VENV_DIR"
-        chown -R root:root "$VENV_DIR"
-        chmod -R 755 "$VENV_DIR"
-    fi
-    
     # Create virtual environment with system packages
+    log "Creating virtual environment..."
     python3 -m venv --system-site-packages "$VENV_DIR" || error "Failed to create virtual environment"
     
-    # Ensure activate script exists
+    # Verify virtual environment structure
+    if [ ! -d "$VENV_DIR/bin" ] || [ ! -d "$VENV_DIR/lib" ] || [ ! -d "$VENV_DIR/include" ]; then
+        error "Virtual environment structure is incomplete"
+    fi
+    
+    # Ensure activate script exists and is executable
     if [ ! -f "$VENV_DIR/bin/activate" ]; then
         error "Virtual environment activation script not found"
     fi
+    chmod +x "$VENV_DIR/bin/activate"
     
-    # Activate virtual environment and install dependencies
+    # Activate virtual environment
+    log "Activating virtual environment..."
     source "$VENV_DIR/bin/activate" || error "Failed to activate virtual environment"
     
+    # Verify we're in the virtual environment
+    if [ -z "$VIRTUAL_ENV" ]; then
+        error "Failed to activate virtual environment"
+    fi
+    
     # Upgrade pip and install wheel
+    log "Upgrading pip and installing wheel..."
     pip install --upgrade pip wheel || error "Failed to upgrade pip"
     
     # Install Python dependencies with retry mechanism
+    log "Installing Python dependencies..."
     for i in {1..3}; do
         if pip install -r requirements.txt; then
             break
@@ -139,15 +151,27 @@ setup_venv() {
         fi
     done
     
-    # Verify virtual environment
+    # Verify virtual environment packages
     if [ ! -d "$VENV_DIR/lib/python3.12/site-packages" ]; then
         error "Virtual environment packages directory not found"
     fi
+    
+    # Verify critical packages are installed
+    for package in docker requests psutil PyYAML click rich python-dotenv; do
+        if ! pip show "$package" >/dev/null 2>&1; then
+            error "Critical package not installed: $package"
+        fi
+    done
     
     # Set proper permissions
     chown -R root:root "$VENV_DIR"
     chmod -R 755 "$VENV_DIR"
     chmod +x "$VENV_DIR/bin"/*
+    
+    # Verify permissions
+    if [ ! -x "$VENV_DIR/bin/activate" ] || [ ! -x "$VENV_DIR/bin/pip" ] || [ ! -x "$VENV_DIR/bin/python" ]; then
+        error "Virtual environment executables are not properly set"
+    fi
     
     log "Virtual environment setup completed successfully"
 }
@@ -299,6 +323,11 @@ verify_installation() {
             error "Critical directory missing: $dir"
         fi
     done
+    
+    # Verify virtual environment is properly set up
+    if [ ! -f "$VENV_DIR/bin/activate" ] || [ ! -f "$VENV_DIR/bin/pip" ] || [ ! -f "$VENV_DIR/bin/python" ]; then
+        error "Virtual environment is not properly set up"
+    fi
     
     # Check wrapper script
     if [ ! -x /usr/local/bin/yashaoxen ]; then
