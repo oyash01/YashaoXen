@@ -220,11 +220,44 @@ copy_app_files() {
     # Remove existing files if they exist
     rm -rf "$APP_DIR"/* || error "Failed to remove existing files"
     
+    # Create config directory if it doesn't exist
+    mkdir -p "$APP_DIR/config" || error "Failed to create config directory"
+    
     # Copy application files with verification
     cp -r ./* "$APP_DIR/" || error "Failed to copy application files"
     
+    # Ensure config.json exists
+    if [ ! -f "$APP_DIR/config/config.json" ]; then
+        log "Creating default config.json..."
+        cat > "$APP_DIR/config/config.json" << 'EOF'
+{
+    "version": "1.0.0",
+    "instances": [],
+    "proxies": [],
+    "dns_servers": [],
+    "features": {
+        "auto_update": true,
+        "network_isolation": true,
+        "proxy_verification": true,
+        "device_verification": true
+    },
+    "safeguards": {
+        "max_instances": 10,
+        "memory_limit": "512m",
+        "cpu_limit": "0.5",
+        "network_isolation": true,
+        "proxy_verification": true,
+        "device_verification": true,
+        "auto_update": true,
+        "allowed_countries": ["US", "CA", "GB", "DE", "FR", "IT", "ES", "NL", "SE", "AU"],
+        "blocked_ips": []
+    }
+}
+EOF
+    fi
+    
     # Verify critical files exist
-    for file in "yashaoxen" "requirements.txt" "config.json"; do
+    for file in "yashaoxen" "requirements.txt" "config/config.json"; do
         if [ ! -f "$APP_DIR/$file" ]; then
             error "Critical file missing: $file"
         fi
