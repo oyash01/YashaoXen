@@ -35,6 +35,11 @@ cleanup() {
     # Remove temporary files
     rm -rf /tmp/yashaoxen_* 2>/dev/null || true
     
+    # Remove virtual environment if setup was incomplete
+    if [ -d "$VENV_DIR" ] && [ ! -f "$VENV_DIR/.setup_complete" ]; then
+        rm -rf "$VENV_DIR" 2>/dev/null || true
+    fi
+    
     # Restore original files if backup exists
     if [ -d "${APP_DIR}_backup" ]; then
         log "Restoring from backup..."
@@ -172,6 +177,10 @@ setup_venv() {
     if [ ! -x "$VENV_DIR/bin/activate" ] || [ ! -x "$VENV_DIR/bin/pip" ] || [ ! -x "$VENV_DIR/bin/python" ]; then
         error "Virtual environment executables are not properly set"
     fi
+    
+    # Create a marker file to indicate successful setup
+    touch "$VENV_DIR/.setup_complete" || error "Failed to create setup marker"
+    chmod 644 "$VENV_DIR/.setup_complete"
     
     log "Virtual environment setup completed successfully"
 }
@@ -325,8 +334,22 @@ verify_installation() {
     done
     
     # Verify virtual environment is properly set up
+    if [ ! -f "$VENV_DIR/.setup_complete" ]; then
+        error "Virtual environment setup is incomplete"
+    fi
+    
     if [ ! -f "$VENV_DIR/bin/activate" ] || [ ! -f "$VENV_DIR/bin/pip" ] || [ ! -f "$VENV_DIR/bin/python" ]; then
-        error "Virtual environment is not properly set up"
+        error "Virtual environment executables are missing"
+    fi
+    
+    # Verify virtual environment structure
+    if [ ! -d "$VENV_DIR/bin" ] || [ ! -d "$VENV_DIR/lib" ] || [ ! -d "$VENV_DIR/include" ]; then
+        error "Virtual environment structure is incomplete"
+    fi
+    
+    # Verify packages directory
+    if [ ! -d "$VENV_DIR/lib/python3.12/site-packages" ]; then
+        error "Virtual environment packages directory not found"
     fi
     
     # Check wrapper script
