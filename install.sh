@@ -99,17 +99,27 @@ install_system_deps() {
 setup_venv() {
     log "Setting up Python virtual environment..."
     
-    # Create virtual environment directory
+    # Create virtual environment directory with proper permissions
     mkdir -p "$VENV_DIR" || error "Failed to create virtual environment directory"
+    chown -R root:root "$VENV_DIR"
+    chmod -R 755 "$VENV_DIR"
     
     # Remove existing venv if corrupted
     if [ -d "$VENV_DIR" ] && [ ! -f "$VENV_DIR/bin/activate" ]; then
         log "Removing corrupted virtual environment..."
         rm -rf "$VENV_DIR"
+        mkdir -p "$VENV_DIR"
+        chown -R root:root "$VENV_DIR"
+        chmod -R 755 "$VENV_DIR"
     fi
     
-    # Create virtual environment
-    python3 -m venv "$VENV_DIR" || error "Failed to create virtual environment"
+    # Create virtual environment with system packages
+    python3 -m venv --system-site-packages "$VENV_DIR" || error "Failed to create virtual environment"
+    
+    # Ensure activate script exists
+    if [ ! -f "$VENV_DIR/bin/activate" ]; then
+        error "Virtual environment activation script not found"
+    fi
     
     # Activate virtual environment and install dependencies
     source "$VENV_DIR/bin/activate" || error "Failed to activate virtual environment"
@@ -128,6 +138,18 @@ setup_venv() {
             sleep 2
         fi
     done
+    
+    # Verify virtual environment
+    if [ ! -d "$VENV_DIR/lib/python3.12/site-packages" ]; then
+        error "Virtual environment packages directory not found"
+    fi
+    
+    # Set proper permissions
+    chown -R root:root "$VENV_DIR"
+    chmod -R 755 "$VENV_DIR"
+    chmod +x "$VENV_DIR/bin"/*
+    
+    log "Virtual environment setup completed successfully"
 }
 
 # Function to setup configuration
